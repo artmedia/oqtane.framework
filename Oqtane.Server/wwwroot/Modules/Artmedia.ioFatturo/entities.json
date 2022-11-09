@@ -1,0 +1,84 @@
+[
+  {
+    "entitytype": "articolo",
+    "operationtype": "list|view|new|edit|clone",
+    "descrizioneEstesa": "Anagrafica Articoli",
+    "icon": "glyphicon glyphicon-th-large",
+    "showLeftColumnInEdit": true,
+    "descrizioneOperazioniCRUD": "Gli articoli possono essere ricercati per parola chiave attraverso il codice, il codice a barre, il nome, la descrizione dell'articolo oppure attraverso la categoria; dopo aver selezionato l'articolo puoi modificarne i campi. Per creare un nuovo Articolo clicca sul pulsante Nuovo; ricorda di assegnare un Codice Articolo univoco (il sistema ti propone un codice numerico univoco, puoi utilizzare quello).",
+    "defaultFilterParams": {
+      "strSearch": "",
+      "uidCategoria": "00000000-0000-0000-0000-000000000000",
+      "visualizzaAnnullati": false,
+      "visualizzaConGiacenza": false
+    }
+  },
+  {
+    "entitytype": "tipounitadimisura",
+    "operationtype": "list|view|new|edit|clone",
+    "descrizioneEstesa": "Unita' di misura",
+    "icon": "glyphicon glyphicon-th-large",
+    "showLeftColumnInEdit": false,
+    "descrizioneOperazioniCRUD": "descrizione operazioni",
+    "defaultFilterParams": {}
+  },
+  {
+    "entitytype": "soggetto",
+    "operationtype": "list|view|new|edit|clone",
+    "descrizioneEstesa": "Soggetto: cliente e/o fornitore",
+    "icon": "glyphicon glyphicon-align-justify",
+    "showLeftColumnInEdit": true,
+    "descrizioneOperazioniCRUD": "Consulta l'anagrafica dei clienti o fornitori; e' possibile creare nuovi soggetti da questa maschera.",
+    "defaultFilterParams": {
+      "strSearch": "",
+      "visualizzaAnnullati": false
+    }
+  },
+  {
+    "entitytype": "fatturacliente",
+    "operationtype": "list|view",
+    "descrizioneEstesa": "Archivio Fatture Cliente",
+    "icon": "glyphicon glyphicon-align-justify",
+    "showLeftColumnInEdit": true,
+    "descrizioneOperazioniCRUD": "Consulta l'archivio delle Fatture Cliente; è possibile affinare la ricerca attraverso i filtri.",
+    "defaultFilterParams": {
+      "uidTipoSezionale": "00000000-0000-0000-0000-000000000001",
+      "dataFatturaInizio": "",
+      "dataFatturaFine": "",
+      "strFiltroIncassi": "tutte",
+      "uidSoggetto": "00000000-0000-0000-0000-000000000000"
+    }
+  },
+  {
+    "entitytype": "fatturacliente",
+    "operationtype": "new|edit|clone",
+    "descrizioneEstesa": "Crea/Modifica Fattura Cliente",
+    "icon": "glyphicon glyphicon-align-justify",
+    "showLeftColumnInEdit": true,
+    "descrizioneOperazioniCRUD": "Crea la fattura attraverso i passaggi guidati",
+    "defaultFilterParams": {}
+  },
+  {
+    "entitytype": "ddt",
+    "operationtype": "list|view",
+    "descrizioneEstesa": "Documenti di Trasporto",
+    "icon": "glyphicon glyphicon-align-justify",
+    "showLeftColumnInEdit": true,
+    "descrizioneOperazioniCRUD": "Consulta l'archivio dei DDT (Documenti di Trasporto); è possibile affinare la ricerca attraverso i filtri.",
+    "defaultFilterParams": {
+      "showOnlyDDTDaFatturare": false,
+      "dataDocumentoInizio": "",
+      "dataDocumentoFine": "",
+      "uidSoggetto": "00000000-0000-0000-0000-000000000000"
+    }
+  },
+  {
+    "entitytype": "ddt",
+    "operationtype": "new|edit|clone",
+    "descrizioneEstesa": "Crea/Modifica Documenti di Trasporto",
+    "icon": "glyphicon glyphicon-align-justify",
+    "showLeftColumnInEdit": false,
+    "descrizioneOperazioniCRUD": "Crea il Documento di Trasporto DDT attraverso i passaggi guidati",
+    "defaultFilterParams": {}
+  }
+]

@@ -1,0 +1,105 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml-stylesheet type="text/xsl" href="FoglioStileAssoSoftware.xsl"?>
+<p:FatturaElettronica versione="FPR12" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:p="http://ivaservizi.agenziaentrate.gov.it/docs/xsd/fatture/v1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <FatturaElettronicaHeader>
+    <DatiTrasmissione>
+      <IdTrasmittente>
+        <IdPaese>IT</IdPaese>
+        <IdCodice>02310931007</IdCodice>
+      </IdTrasmittente>
+      <ProgressivoInvio>0000000066</ProgressivoInvio>
+      <FormatoTrasmissione>FPR12</FormatoTrasmissione>
+      <CodiceDestinatario>XXXXXXX</CodiceDestinatario>
+      <ContattiTrasmittente>
+        <Telefono>066506366</Telefono>
+        <Email>canafisrl@live.it</Email>
+      </ContattiTrasmittente>
+    </DatiTrasmissione>
+    <CedentePrestatore>
+      <DatiAnagrafici>
+        <IdFiscaleIVA>
+          <IdPaese>IT</IdPaese>
+          <IdCodice>02310931007</IdCodice>
+        </IdFiscaleIVA>
+        <CodiceFiscale>02310931007</CodiceFiscale>
+        <Anagrafica>
+          <Denominazione>CA NA FI SRL</Denominazione>
+        </Anagrafica>
+        <RegimeFiscale>RF01</RegimeFiscale>
+      </DatiAnagrafici>
+      <Sede>
+        <Indirizzo>via Portuense 2373</Indirizzo>
+        <CAP>00054</CAP>
+        <Comune>Fiumicino</Comune>
+        <Provincia>RM</Provincia>
+        <Nazione>IT</Nazione>
+      </Sede>
+      <IscrizioneREA>
+        <Ufficio>RM</Ufficio>
+        <NumeroREA>781040</NumeroREA>
+        <CapitaleSociale>10200.00</CapitaleSociale>
+        <SocioUnico>SM</SocioUnico>
+        <StatoLiquidazione>LN</StatoLiquidazione>
+      </IscrizioneREA>
+    </CedentePrestatore>
+    <CessionarioCommittente>
+      <DatiAnagrafici>
+        <IdFiscaleIVA>
+          <IdPaese>IT</IdPaese>
+          <IdCodice>08089400017</IdCodice>
+        </IdFiscaleIVA>
+        <CodiceFiscale>08089400017</CodiceFiscale>
+        <Anagrafica>
+          <Denominazione>Wav-e Xperience B.V.</Denominazione>
+        </Anagrafica>
+      </DatiAnagrafici>
+      <Sede>
+        <Indirizzo>Bijsterhuizen 2160</Indirizzo>
+        <CAP>12045</CAP>
+        <Comune>LG Wijchen</Comune>
+        <Provincia>TO</Provincia>
+        <Nazione>IT</Nazione>
+      </Sede>
+    </CessionarioCommittente>
+  </FatturaElettronicaHeader>
+  <FatturaElettronicaBody>
+    <DatiGenerali>
+      <DatiGeneraliDocumento>
+        <TipoDocumento>TD01</TipoDocumento>
+        <Divisa>EUR</Divisa>
+        <Data>2019-03-08</Data>
+        <Numero>15/2019</Numero>
+        <ImportoTotaleDocumento>3300.00</ImportoTotaleDocumento>
+      </DatiGeneraliDocumento>
+    </DatiGenerali>
+    <DatiBeniServizi>
+      <DettaglioLinee>
+        <NumeroLinea>1</NumeroLinea>
+        <Descrizione>Realizzazione manufatti in VTR per supporto monitors.</Descrizione>
+        <Quantita>6.00000000</Quantita>
+        <UnitaMisura>Colli</UnitaMisura>
+        <PrezzoUnitario>550.00000000</PrezzoUnitario>
+        <PrezzoTotale>3300.00</PrezzoTotale>
+        <AliquotaIVA>0.00</AliquotaIVA>
+        <Natura>N3</Natura>
+      </DettaglioLinee>
+      <DatiRiepilogo>
+        <AliquotaIVA>0.00</AliquotaIVA>
+        <Natura>N3</Natura>
+        <ImponibileImporto>3300.00</ImponibileImporto>
+        <Imposta>0.00</Imposta>
+        <EsigibilitaIVA>I</EsigibilitaIVA>
+        <RiferimentoNormativo>Non imponibile iva ai sensi dell'art. 41 del D.L. 331/1993.</RiferimentoNormativo>
+      </DatiRiepilogo>
+    </DatiBeniServizi>
+    <DatiPagamento>
+      <CondizioniPagamento>TP02</CondizioniPagamento>
+      <DettaglioPagamento>
+        <Beneficiario>CANAFI SRL</Beneficiario>
+        <ModalitaPagamento>MP05</ModalitaPagamento>
+        <ImportoPagamento>3300.00</ImportoPagamento>
+        <IBAN>IT82R0200849633000400375274</IBAN>
+      </DettaglioPagamento>
+    </DatiPagamento>
+  </FatturaElettronicaBody>
+</p:FatturaElettronica>

@@ -1,0 +1,86 @@
+body {
+    padding-top: 72px;
+}
+
+/*
+.linkFooter1:focus,
+.linkFooter1:hover {
+    color: rgba(255,255,255,.8) !important;
+}
+
+.linkFooter2:focus,
+.linkFooter2:hover {
+    color: #009670 !important;
+}
+
+.text-light .text-muted,
+.text-white .text-muted {
+    color: rgba(255, 255, 255, .54) !important;
+}*/
+
+.flip-y {
+    transform: scaleY(-1);
+}
+
+.z-index-1 {
+    z-index: 1;
+}
+
+.py-lg-15 {
+    padding-top: 9rem !important;
+    padding-bottom: 9rem !important;
+}
+
+.py-12 {
+    padding-top: 7rem !important;
+    padding-bottom: 7rem !important;
+}
+
+.py-7 {
+    padding-top: 3rem !important;
+    padding-bottom: 3rem !important;
+}
+
+.mb-7 {
+    margin-bottom: 3rem !important;
+}
+
+.rounded-blob {
+    border-radius: 30% 70% 70% 30%/30% 30% 70% 70%;
+}
+
+/*.shadow-lg {
+    box-shadow: 0 12px 48px rgba(15, 17, 27, .03) !important;
+}*/
+
+.img-fluid {
+    max-width: 100%;
+    height: auto;
+}
+
+img,
+svg {
+    vertical-align: top;
+}
+
+.linkFooter1 {
+    color: rgba(255,255,255,.8) !important;
+}
+
+.linkFooter2 {
+    color: rgba(255,255,255,.8) !important;
+}
+
+    .linkFooter2 a {
+        color: rgba(255,255,255,.8) !important;
+        text-decoration: none;
+    }
+
+.linkFooter3 {
+    color: rgba(255,255,255,.8) !important;
+}
+
+    .linkFooter3 a {
+        color: rgba(255,255,255,.8) !important;
+        text-decoration: none;
+    }

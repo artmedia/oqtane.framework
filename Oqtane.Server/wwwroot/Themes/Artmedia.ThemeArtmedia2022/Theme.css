@@ -1,0 +1,69 @@
+/* Module Custom Styles */
+.size-70 {
+    width: 70px;
+    height: 70px;
+}
+
+.width-140 {
+    width: 140px !important;
+}
+.width-160 {
+    width: 160px !important;
+}
+.width-170 {
+    width: 170px !important;
+}
+
+.center-both {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    line-height: 1;
+}
+
+.display-4 {
+    font-size: 3rem;
+}
+
+.justifyMe {
+    text-align: justify;
+}
+
+.rounded-xl {
+    border-radius: 1.5rem;
+}
+
+.mb-n7 {
+    margin-bottom: -4rem !important;
+}
+
+.me-n9 {
+    margin-right: -5rem !important;
+}
+
+.bg-secondary2 {
+    background-color: rgba(52, 58, 79) !important;
+}
+
+.nav.flex-column .nav-link {
+    padding-left: 0;
+}
+
+footer:not(.text-white):not(.text-light) a:not(.btn):not(.dropdown-item):not(.text-muted) {
+    color: #6c757d !important;
+    transition: all .2s ease-in-out;
+}
+.footer p,
+.footer p a,
+.footer p a:link {
+    color: whitesmoke !important;
+}
+.headtext {
+    color: #454a5f !important;
+}
+ul.elencopuntato1 {
+    list-style-type: circle;
+}
+.dropdown-menu {
+    min-width: 180px;
+}

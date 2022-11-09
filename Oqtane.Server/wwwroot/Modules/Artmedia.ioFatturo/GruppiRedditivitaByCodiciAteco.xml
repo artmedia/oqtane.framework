@@ -1,0 +1,78 @@
+<data>
+    <gruppo>
+        <Id>1</Id>
+        <Descrizione>Industrie alimentari e delle bevande</Descrizione>
+        <DescrizioneCodici>(10-11)</DescrizioneCodici>
+        <CodiciSelezionati>10,11</CodiciSelezionati>
+        <CoefficienteRedditivita>40</CoefficienteRedditivita>
+        <IsDefaultPerCodiciNonSelezionati>false</IsDefaultPerCodiciNonSelezionati>
+    </gruppo>
+    <gruppo>
+        <Id>2</Id>
+        <Descrizione>Commercio all'ingrosso e al dettaglio</Descrizione>
+        <DescrizioneCodici>45 - (da 46.2 a 46.9) - (da 47.1 a 47.7) - 47.9</DescrizioneCodici>
+        <CodiciSelezionati>45,46.2,46.3,46.4,46.5,46.6,46.7,46.8,46.9,47.1,47.2,47.3,47.4,47.5,47.6,47.7,47.9</CodiciSelezionati>
+        <CoefficienteRedditivita>40</CoefficienteRedditivita>
+        <IsDefaultPerCodiciNonSelezionati>false</IsDefaultPerCodiciNonSelezionati>
+    </gruppo>
+    <gruppo>
+        <Id>3</Id>
+        <Descrizione>Commercio ambulante di prodotti alimentari e bevande</Descrizione>
+        <DescrizioneCodici>47.81</DescrizioneCodici>
+        <CodiciSelezionati>47.81</CodiciSelezionati>
+        <CoefficienteRedditivita>40</CoefficienteRedditivita>
+        <IsDefaultPerCodiciNonSelezionati>false</IsDefaultPerCodiciNonSelezionati>
+    </gruppo>
+    <gruppo>
+        <Id>4</Id>
+        <Descrizione>Commercio ambulante di altri prodotti</Descrizione>
+        <DescrizioneCodici>47.82-47.89</DescrizioneCodici>
+        <CodiciSelezionati>47.82,47.83,47.84,47.85,47.86,47.87,47.88,47.89</CodiciSelezionati>
+        <CoefficienteRedditivita>54</CoefficienteRedditivita>
+        <IsDefaultPerCodiciNonSelezionati>false</IsDefaultPerCodiciNonSelezionati>
+    </gruppo>
+    <gruppo>
+        <Id>5</Id>
+        <Descrizione>Costruzioni e attivita' immobiliari</Descrizione>
+        <DescrizioneCodici>(41-42-43) - (68)</DescrizioneCodici>
+        <CodiciSelezionati>41,42,43,68</CodiciSelezionati>
+        <CoefficienteRedditivita>86</CoefficienteRedditivita>
+        <IsDefaultPerCodiciNonSelezionati>false</IsDefaultPerCodiciNonSelezionati>
+    </gruppo>
+    <gruppo>
+        <Id>6</Id>
+        <Descrizione>Intermediari del commercio</Descrizione>
+        <DescrizioneCodici>46.1</DescrizioneCodici>
+        <CodiciSelezionati>46.1</CodiciSelezionati>
+        <CoefficienteRedditivita>62</CoefficienteRedditivita>
+        <IsDefaultPerCodiciNonSelezionati>false</IsDefaultPerCodiciNonSelezionati>
+    </gruppo>
+    <gruppo>
+        <Id>7</Id>
+        <Descrizione>Attivita' dei servizi di alloggio e di ristorazione</Descrizione>
+        <DescrizioneCodici>(55-56)</DescrizioneCodici>
+        <CodiciSelezionati>55,56</CodiciSelezionati>
+        <CoefficienteRedditivita>40</CoefficienteRedditivita>
+        <IsDefaultPerCodiciNonSelezionati>false</IsDefaultPerCodiciNonSelezionati>
+    </gruppo>
+    <gruppo>
+        <Id>8</Id>
+        <Descrizione>Attivita' professionali, scientifiche, tecniche, sanitarie, di istruzione, servizi finanziari ed
+                    assicurativi</Descrizione>
+        <DescrizioneCodici>(64-65-66) - (69-70-71-72-73-74-75) - (85) - (86-87-88)</DescrizioneCodici>
+        <CodiciSelezionati>64,65,66,69,70,71,72,73,74,75,85,86,87,88</CodiciSelezionati>
+        <CoefficienteRedditivita>78</CoefficienteRedditivita>
+        <IsDefaultPerCodiciNonSelezionati>false</IsDefaultPerCodiciNonSelezionati>
+    </gruppo>
+    <gruppo>
+        <Id>9</Id>
+        <Descrizione>Altre attivita' economiche</Descrizione>
+        <DescrizioneCodici>(01-02-03) - (05-06-07-08-09) -
+                    (12-13-14-15-16-17-18-19-20-22-22-23-24-25-26-27-28-29-30-31-32-33) - (35) - (36-37-38-39) -
+                    (53-58-59-60-61-62-63) - (77-78-79-80-81-82) - (84) - (90-91-92-93) (94-95-96) - (97-98) -
+                    (99)</DescrizioneCodici>
+        <CodiciSelezionati>01,02,03,05,06,07,08,09,12,13,14,15,16,17,18,19,20,22,22,23,24,25,26,27,28,29,30,31,32,33,35,36,37,38,39,53,58,59,60,61,62,63,77,78,79,80,81,82,84,90,91,92,93,94,95,96,97,98,99</CodiciSelezionati>
+        <CoefficienteRedditivita>67</CoefficienteRedditivita>
+        <IsDefaultPerCodiciNonSelezionati>true</IsDefaultPerCodiciNonSelezionati>
+    </gruppo>
+</data>

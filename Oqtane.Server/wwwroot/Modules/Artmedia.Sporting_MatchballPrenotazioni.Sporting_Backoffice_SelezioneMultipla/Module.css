@@ -1,0 +1,164 @@
+#selectable .ui-selecting {
+    background: #FECA40;
+}
+
+#selectable .ui-selected {
+    background: #F39814;
+    color: white;
+}
+
+#selectable {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+    #selectable li {
+        margin: 3px;
+        padding: 1px;
+        float: left;
+        width: 100px;
+        height: 80px;
+        font-size: 4em;
+        text-align: center;
+    }
+
+
+
+/* Module Custom Styles */
+body {
+    /*        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;*/
+    min-height: 100vh;
+    padding: 4rem 0;
+    font-family: -system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+main {
+    margin-top: 50px;
+}
+
+.pointerOnMe,
+.h {
+    cursor: pointer;
+}
+
+
+table.tblprenotazioni {
+    width: 100%;
+    /*max-width: 50rem;*/
+}
+
+    table.tblprenotazioni tr:nth-child(even) th {
+        /*color: #ccc;
+                font-weight: normal;*/
+    }
+
+    table.tblprenotazioni th,
+    table.tblprenotazioni td {
+        /*padding: 0.5rem 1rem;*/
+        padding: 2px;
+    }
+
+    table.tblprenotazioni th {
+        font-weight: bold; /*normal;*/
+        border-top: thin dotted white;
+    }
+
+    table.tblprenotazioni td {
+        font-size: 0.9rem;
+        font-weight: bold;
+        line-height: 1.4;
+        border-radius: 0.2rem;
+        transition: opacity 0.3s ease;
+    }
+
+        table.tblprenotazioni td > span {
+            font-size: 0.9em;
+            font-weight: normal;
+            display: block;
+            width: 100%;
+        }
+
+
+.h {
+    padding: 5px 2px 15px 10px;
+}
+
+    .h span {
+        font-weight: normal;
+    }
+
+.testoprenotazione {
+    padding-left: 5px;
+}
+
+/* COLORI H */
+.hPrenotataMaestro {
+    background-color: #FFA726;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.hPrenotataSocio {
+    background-color: #26C6DA;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.hPrenotataNonSocio {
+    background-color: cornflowerblue;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.hPrenotabile:hover {
+    background-color: #28a745; /*#28a745=verde*/
+    border-radius: 6px;
+    opacity: 0.5;
+}
+
+.hPrelazionata {
+    background-color: #28a745; /*#28a745=verde*/
+    border-radius: 6px;
+    /*opacity: 0.5;*/
+}
+/* COLORI H */
+.ProfiloMaestro {
+    background-color: #FFA726;
+}
+
+.ProfiloSocio {
+    background-color: #26C6DA;
+}
+
+.ProfiloNonSocio {
+    background-color: cornflowerblue;
+}
+
+/* ajaz spinning con animazione */
+.myspinnerAjax {
+    width: 100px;
+    height: 100px;
+    background-color: #0CB1C4;
+    animation-name: spin;
+    animation-duration: 5000ms;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+    /* transform: rotate(3deg); */
+    /* transform: rotate(0.3rad);/ */
+    /* transform: rotate(3grad); */
+    /* transform: rotate(.03turn);  */
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
