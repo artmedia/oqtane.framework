@@ -6,7 +6,7 @@
 
 Oqtane is a Modular Application Framework. It leverages Blazor, an open source and cross-platform web UI framework for building single-page apps using .NET and C# instead of JavaScript. Blazor apps are composed of reusable web UI components implemented using C#, HTML, and CSS. Both client and server code is written in C#, allowing you to share code and libraries.
 
-Oqtane is being developed based on some fundamental principles which are outlined in the [Oqtane Philosophy](https://www.oqtane.org/Resources/Blog/PostId/538/oqtane-philosophy).
+Oqtane is being developed based on some fundamental principles which are outlined in the [Oqtane Philosophy](https://www.oqtane.org/blog/!/20/oqtane-philosophy).
 
 Please note that this project is owned by the .NET Foundation and is governed by the **[.NET Foundation Contributor Covenant Code of Conduct](https://dotnetfoundation.org/code-of-conduct)**
 
@@ -19,22 +19,6 @@ Please note that this project is owned by the .NET Foundation and is governed by
 - Install the latest edition (v17.0 or higher) of [Visual Studio 2022](https://visualstudio.microsoft.com/vs/preview/#download-preview) with the **ASP.NET and web development** workload enabled. Oqtane works with ALL editions of Visual Studio from Community to Enterprise. If you wish to use LocalDB for development ( not a requirement as Oqtane supports SQLite, mySQL, and PostgreSQL ) you must also install the **Data storage and processing**.  
 
 - clone the Oqtane dev branch source code to your local system. Open the **Oqtane.sln** solution file and Build the solution. Make sure you specify Oqtane.Server as the Startup Project and then Run the application.
-
-**Using Version 2:**
-
-- Install **[.NET 5 SDK](https://dotnet.microsoft.com/download/dotnet/5.0)**.
-   
-- Install the latest edition (v16.8 or higher) of [Visual Studio 2019](https://visualstudio.microsoft.com/vs/) with the **ASP.NET and web development** workload enabled. Oqtane works with ALL editions of Visual Studio from Community to Enterprise. If you wish to use LocalDB for development ( not a requirement as Oqtane supports SQLite, mySQL, and PostgreSQL ) you must also install the **.NET desktop development workload**.  
-
-- Download a release or Clone the Oqtane source code from a v2.x Tag to your local system. Open the **Oqtane.sln** solution file and Build the solution. Make sure you specify Oqtane.Server as the Startup Project and then Run the application.
-
-**Using Version 1:**
-
-- Install **[.NET Core 3.1 SDK](https://dotnet.microsoft.com/download/dotnet-core/thank-you/sdk-3.1.300-windows-x64-installer)**.
-   
-- Install [Visual Studio 2019](https://visualstudio.microsoft.com/vs) with the **ASP.NET and web development** workload enabled. Oqtane works with ALL editions of Visual Studio from Community to Enterprise. If you do not have a SQL Server installation available already and you wish to use LocalDB for development, you must also install the **.NET desktop development workload**.  
-
-- Download a release or Clone the Oqtane source code from a v1.x Tag to your local system. Open the **Oqtane.sln** solution file and Build the solution. Make sure you specify Oqtane.Server as the Startup Project and then Run the application.
 
 **Installing an official release:**
 
@@ -57,52 +41,74 @@ There is a separate [Documentation repository](https://github.com/oqtane/oqtane.
 # Roadmap
 This project is open source, and therefore is a work in progress...
 
-Backlog (Not Yet Assigned)
-- [ ] Allow language specification in Url (#1731)
+4.0.0 ( Q4 2022 )
+- [ ] Migration to .NET 7  
+- [ ] Folder Providers
 
-V.3.1.0 ( Q1 2022 )
-- [ ] Token based authentication / authorization via OAuth2 / OpenID Connect
-- [ ] Provide Single Sign On (SSO) for other applications
-- [ ] Authentication extensibility via Social logins / Azure B2C
-- [ ] Allow configuration of password complexity for local authentication
-- [ ] User account lockout support
+[3.2.0](https://github.com/oqtane/oqtane.framework/releases/tag/v3.2.0) ( Sep 13, 2022 )
+- [x] MAUI / Blazor Hybrid support 
+- [x] Upgrade to Bootstrap 5.2
 
-V.3.0.3 ( Feb 15, 2022 )
+[3.1.3](https://github.com/oqtane/oqtane.framework/releases/tag/v3.1.3) ( Jun 27, 2022 )
+- [x] Stabilization improvements 
+
+[3.1.2](https://github.com/oqtane/oqtane.framework/releases/tag/v3.1.2) ( May 14, 2022 )
+- [x] Stabilization improvements 
+
+[3.1.1](https://github.com/oqtane/oqtane.framework/releases/tag/v3.1.1) ( May 3, 2022 )
+- [x] Stabilization improvements 
+
+[3.1.0](https://github.com/oqtane/oqtane.framework/releases/tag/v3.1.0) ( Apr 5, 2022 )
+- [x] User account lockout support
+- [x] Two factor authentication support
+- [x] Per-site configuration of password complexity, lockout criteria
+- [x] External login support via OAuth2 / OpenID Connect
+- [x] Support for Single Sign On (SSO) via OpenID Connect
+- [x] External client support via Jwt tokens
+- [x] Downstream API support via Jwt tokens
+- [x] CSS resource hierarchy support
+- [x] Site structure/content migration
+- [x] Event log notifications  
+- [x] 404 page handling
+- [x] Property change component notifications
+- [x] Support for ES6 JavaScript modules
+
+[3.0.3](https://github.com/oqtane/oqtane.framework/releases/tag/v3.0.3) ( Feb 15, 2022 )
 - [x] Url fragment and anchor navigation support
 - [x] Meta tag support in page head
 - [x] Html/Text content versioning support
 
-V.3.0.2 ( Jan 16, 2022 )
+[3.0.2](https://github.com/oqtane/oqtane.framework/releases/tag/v3.0.2) ( Jan 16, 2022 )
 - [x] Default alias specification, auto alias registration, redirect logic
 - [x] Improvements to visitor tracking and url mapping
 - [x] Scheduler enhancements for stop/start, weekly and one-time jobs
 - [x] Purge job for daily housekeeping of event log and visitors 
 - [x] Granular security filtering for Settings 
 
-V.3.0.1 ( Dec 12, 2021 )
+[3.0.1](https://github.com/oqtane/oqtane.framework/releases/tag/v3.0.1) ( Dec 12, 2021 )
 - [x] Url mapping for broken links, content migration
 - [x] Visitor tracking for usage insights, personalization
 - [x] User experience improvements in Page and Module management
 
-V.3.0.0 ( Nov 11, 2021 )
+[3.0.0](https://github.com/oqtane/oqtane.framework/releases/tag/v3.0.0) ( Nov 11, 2021 )
 - [x] Migration to .NET 6
 - [x] Blazor hosting model flexibility per site
 - [x] Blazor WebAssembly prerendering support
 
-V.2.3.1 ( Sep 27, 2021 )
+[2.3.1](https://github.com/oqtane/oqtane.framework/releases/tag/v2.3.1) ( Sep 27, 2021 )
 - [x] Complete UI migration to Bootstrap 5 and HTML5 form validation
 - [x] Improve module/theme installation and add support for commercial extensions
 - [x] Replace System.Drawing with ImageSharp
 - [x] Image resizing service
 
-V.2.2.0 ( Jul 6, 2021 )
+[2.2.0](https://github.com/oqtane/oqtane.framework/releases/tag/v2.2.0) ( Jul 6, 2021 )
 - [x] Bootstrap 5 Upgrade
 - [x] Package Service integration
 - [x] Default and Shared Resource File inclusion
 - [x] Startup Error logging
 - [x] API Controller Validation and Logging
 
-V.2.1.0 ( Jun 4, 2021 )
+[2.1.0](https://github.com/oqtane/oqtane.framework/releases/tag/v2.1.0) ( Jun 4, 2021 )
 - [x] Cross Platform Database Support ( ie. LocalDB, SQL Server, SQLite, MySQL, PostgreSQL ) - see [#964](https://github.com/oqtane/oqtane.framework/discussions/964)
 - [x] Utilize EF Core Migrations - see [#964](https://github.com/oqtane/oqtane.framework/discussions/964)
 - [x] Public Content Folder support
@@ -112,20 +118,20 @@ V.2.1.0 ( Jun 4, 2021 )
 - [x] Blazor Server Pre-rendering
 - [x] Translation Package installation support
 
-V.2.0.2 ( Apr 19, 2021 )
+[2.0.2](https://github.com/oqtane/oqtane.framework/releases/tag/v2.0.2) ( Apr 19, 2021 )
 - [x] Assorted fixes and user experience improvements
 
-V.2.0.1 ( Feb 27, 2021 )
+[2.0.1](https://github.com/oqtane/oqtane.framework/releases/tag/v2.0.1) ( Feb 27, 2021 )
 - [x] Complete Static Localization of Admin UI
 
-V.2.0.0 ( Nov 11, 2020 - released in conjunction with .NET 5 )
+[2.0.0](https://github.com/oqtane/oqtane.framework/releases/tag/v2.0.0) ( Nov 11, 2020 - released in conjunction with .NET 5 )
 - [x] Migration to .NET 5
 - [x] Static Localization ( ie. labels, help text, etc.. )
 - [x] Improved JavaScript Reference Support
 - [x] Performance Optimizations
 - [x] Developer Productivity Enhancements
 
-V.1.0.0 ( May 19, 2020 - released in conjunction with .NET Core 3.2 )
+[1.0.0](https://github.com/oqtane/oqtane.framework/releases/tag/v1.0.0) ( May 19, 2020 - released in conjunction with .NET Core 3.2 )
 - [x] Multi-Tenant ( Shared Database & Isolated Database ) 
 - [x] Modular Architecture
 - [x] Headless API with Swagger Support
@@ -149,6 +155,10 @@ V.1.0.0 ( May 19, 2020 - released in conjunction with .NET Core 3.2 )
 Oqtane was created by [Shaun Walker](https://www.linkedin.com/in/shaunbrucewalker/) and is inspired by the DotNetNuke web application framework. Initially created as a proof of concept, Oqtane is a native Blazor application written from the ground up using modern .NET Core technology and a Single Page Application (SPA) architecture. It is a modular application framework offering a fully dynamic page compositing model, multi-site support, designer friendly themes, and extensibility via third party modules.
 
 # Release Announcements
+
+[Oqtane 3.2](https://www.oqtane.org/blog/!/50/oqtane-3-2-for-net-maui-blazor-hybrid)
+
+[Oqtane 3.1](https://www.oqtane.org/blog/!/41/oqtane-3-1-released)
 
 [Oqtane 3.0](https://www.oqtane.org/Resources/Blog/PostId/551/announcing-oqtane-30-for-net-6)
 

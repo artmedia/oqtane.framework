@@ -78,6 +78,28 @@ namespace Oqtane.Models
         /// </summary>
         public string RenderMode { get; set; }
 
+        /// <summary>
+        /// Keeps track of site configuration changes and is used by the IUpgradeable interface
+        /// </summary>
+        public string Version { get; set; }
+
+        /// <summary>
+        /// The home page of the site which will be used as a fallback if no page has a path of "/" 
+        /// </summary>
+        public int? HomePageId { get; set; }
+
+        [NotMapped]
+        public Dictionary<string, string> Settings { get; set; }
+
+        [NotMapped]
+        public List<Page> Pages { get; set; }
+
+        [NotMapped]
+        public List<Module> Modules { get; set; }
+
+        [NotMapped]
+        public List<Language> Languages { get; set; }
+
         #region IAuditable Properties
 
         /// <inheritdoc/>
@@ -96,17 +118,16 @@ namespace Oqtane.Models
         public string DeletedBy { get; set; }
         public DateTime? DeletedOn { get; set; }
         public bool IsDeleted { get; set; }
-        
+
         #endregion
-        
+
         [NotMapped]
         public string SiteTemplateType { get; set; }
 
-        [NotMapped]
-        public Dictionary<string, string> Settings { get; set; }
-
+        #region Obsolete properties
         [NotMapped]
         [Obsolete("This property is deprecated.", false)]
         public string DefaultLayoutType { get; set; }
+        #endregion
     }
 }

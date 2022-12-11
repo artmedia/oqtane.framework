@@ -16,29 +16,14 @@ namespace Oqtane.Migrations.Tenant
 
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            if (ActiveDatabase.Name != "Sqlite")
-            {
-                var fileEntityBuilder = new FileEntityBuilder(migrationBuilder, ActiveDatabase);
-
-                // Drop the index is needed because the Name is already associated with IX_File
-                fileEntityBuilder.DropForeignKey("FK_File_Folder");
-                fileEntityBuilder.DropIndex("IX_File");
-                fileEntityBuilder.AlterStringColumn("Name", 256);
-                fileEntityBuilder.AddIndex("IX_File", new[] { "FolderId", "Name" }, true);
-                fileEntityBuilder.AddForeignKey("FK_File_Folder");
-            }
+            var fileEntityBuilder = new FileEntityBuilder(migrationBuilder, ActiveDatabase);
+            fileEntityBuilder.AlterStringColumn("Name", 256, false, true, "IX_File:FolderId,Name:true");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            if (ActiveDatabase.Name != "Sqlite")
-            {
-                var fileEntityBuilder = new FileEntityBuilder(migrationBuilder, ActiveDatabase);
-
-                fileEntityBuilder.DropIndex("IX_File");
-                fileEntityBuilder.AlterStringColumn("Name", 50);
-                fileEntityBuilder.AddIndex("IX_File", new[] { "FolderId", "Name" }, true);
-            }
+            var fileEntityBuilder = new FileEntityBuilder(migrationBuilder, ActiveDatabase);
+            fileEntityBuilder.AlterStringColumn("Name", 50, false, true, "IX_File:FolderId,Name:true");
         }
     }
 }

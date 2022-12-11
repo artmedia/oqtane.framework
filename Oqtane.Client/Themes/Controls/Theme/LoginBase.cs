@@ -32,26 +32,29 @@ namespace Oqtane.Themes.Controls
 
         protected async Task LogoutUser()
         {
-            await UserService.LogoutUserAsync(PageState.User);
-            await LoggingService.Log(PageState.Alias, PageState.Page.PageId, PageState.ModuleId, PageState.User.UserId, GetType().AssemblyQualifiedName, "Logout", LogFunction.Security, LogLevel.Information, null, "User Logout For Username {Username}", PageState.User.Username);
+            await LoggingService.Log(PageState.Alias, PageState.Page.PageId, null, PageState.User.UserId, GetType().AssemblyQualifiedName, "Logout", LogFunction.Security, LogLevel.Information, null, "User Logout For Username {Username}", PageState.User.Username);
 
-            PageState.User = null;
-            bool authorizedtoviewpage = UserSecurity.IsAuthorized(PageState.User, PermissionNames.View, PageState.Page.Permissions);
-
-            if (PageState.Runtime == Oqtane.Shared.Runtime.Server)
+            // check if anonymous user can access page
+            var url = PageState.Alias.Path + "/" + PageState.Page.Path;
+            if (!UserSecurity.IsAuthorized(null, PermissionNames.View, PageState.Page.Permissions))
             {
-                // server-side Blazor needs to post to the Logout page
-                var fields = new { __RequestVerificationToken = SiteState.AntiForgeryToken, returnurl = !authorizedtoviewpage ? PageState.Alias.Path : PageState.Alias.Path + "/" + PageState.Page.Path };
-                string url = Utilities.TenantUrl(PageState.Alias, "/pages/logout/");
-                var interop = new Interop(jsRuntime);
-                await interop.SubmitForm(url, fields);
+                url = PageState.Alias.Path;
+            }
+
+            if (PageState.Runtime == Shared.Runtime.Hybrid)
+            {
+                // hybrid apps utilize an interactive logout
+                await UserService.LogoutUserAsync(PageState.User);
+                var authstateprovider = (IdentityAuthenticationStateProvider)ServiceProvider.GetService(typeof(IdentityAuthenticationStateProvider));
+                authstateprovider.NotifyAuthenticationChanged();
+                NavigationManager.NavigateTo(url, true);
             }
             else
             {
-                // client-side Blazor
-                var authstateprovider = (IdentityAuthenticationStateProvider)ServiceProvider.GetService(typeof(IdentityAuthenticationStateProvider));
-                authstateprovider.NotifyAuthenticationChanged();
-                NavigationManager.NavigateTo(NavigateUrl(!authorizedtoviewpage ? PageState.Alias.Path : PageState.Page.Path, true));
+                // post to the Logout page to complete the logout process
+                var fields = new { __RequestVerificationToken = SiteState.AntiForgeryToken, returnurl = url };
+                var interop = new Interop(jsRuntime);
+                await interop.SubmitForm(Utilities.TenantUrl(PageState.Alias, "/pages/logout/"), fields);
             }
         }
     }

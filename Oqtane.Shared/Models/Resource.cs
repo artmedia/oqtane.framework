@@ -1,3 +1,4 @@
+using System;
 using Oqtane.Shared;
 
 namespace Oqtane.Models
@@ -7,6 +8,8 @@ namespace Oqtane.Models
     /// </summary>
     public class Resource
     {
+        private string _url;
+
         /// <summary>
         /// A <see cref="ResourceType"/> so the Interop can properly create `script` or `link` tags
         /// </summary>
@@ -15,7 +18,14 @@ namespace Oqtane.Models
         /// <summary>
         /// Path to the resources. 
         /// </summary>
-        public string Url { get; set; }
+        public string Url
+        {
+            get => _url;
+            set
+            {
+                _url = (value.Contains("://")) ? value : (!value.StartsWith("/") ? "/" : "") + value;
+            }
+        }
 
         /// <summary>
         /// Integrity checks to increase the security of resources accessed. Especially common in CDN resources. 
@@ -33,14 +43,22 @@ namespace Oqtane.Models
         public string Bundle { get; set; }
 
         /// <summary>
-        /// Determines if the Resource is global, meaning that the entire solution uses it or just some modules.
-        /// TODO: VERIFY that this explanation is correct.
+        /// For Stylesheets this defines the relative position for cascading purposes
         /// </summary>
-        public ResourceDeclaration Declaration { get; set; }
+        public ResourceLevel Level { get; set; }
 
         /// <summary>
-        /// If the Resource should be included in the `head` of the HTML document or the `body`
+        /// For Scripts this defines if the resource should be included in the Head or Body
         /// </summary>
         public ResourceLocation Location { get; set; }
+
+        /// <summary>
+        /// For Scripts this allows type="module" registrations - not applicable to Stylesheets
+        /// </summary>
+        public bool ES6Module { get; set; }
+
+
+        [Obsolete("ResourceDeclaration is deprecated", false)]
+        public ResourceDeclaration Declaration { get; set; }
     }
 }

@@ -32,15 +32,17 @@ namespace Oqtane.Controllers
         private readonly IFileRepository _files;
         private readonly IFolderRepository _folders;
         private readonly IUserPermissions _userPermissions;
+        private readonly ISyncManager _syncManager;
         private readonly ILogManager _logger;
         private readonly Alias _alias;
 
-        public FileController(IWebHostEnvironment environment, IFileRepository files, IFolderRepository folders, IUserPermissions userPermissions, ILogManager logger, ITenantManager tenantManager)
+        public FileController(IWebHostEnvironment environment, IFileRepository files, IFolderRepository folders, IUserPermissions userPermissions, ISyncManager syncManager, ILogManager logger, ITenantManager tenantManager)
         {
             _environment = environment;
             _files = files;
             _folders = folders;
             _userPermissions = userPermissions;
+            _syncManager = syncManager;
             _logger = logger;
             _alias = tenantManager.GetAlias();
         }
@@ -137,6 +139,7 @@ namespace Oqtane.Controllers
             {
                 if (File.Name != file.Name || File.FolderId != file.FolderId)
                 {
+                    file.Folder = _folders.GetFolder(file.FolderId);
                     string folderpath = _folders.GetFolderPath(file.Folder);
                     if (!Directory.Exists(folderpath))
                     {
@@ -147,6 +150,7 @@ namespace Oqtane.Controllers
 
                 file.Extension = Path.GetExtension(file.Name).ToLower().Replace(".", "");
                 file = _files.UpdateFile(file);
+                _syncManager.AddSyncEvent(_alias.TenantId, EntityNames.File, file.FileId, SyncEventActions.Update);
                 _logger.Log(LogLevel.Information, this, LogFunction.Update, "File Updated {File}", file);
             }
             else
@@ -167,8 +171,6 @@ namespace Oqtane.Controllers
             Models.File file = _files.GetFile(id);
             if (file != null && file.Folder.SiteId == _alias.SiteId && _userPermissions.IsAuthorized(User, EntityNames.Folder, file.Folder.FolderId, PermissionNames.Edit))
             {
-                _files.DeleteFile(id);
-
                 string filepath = _files.GetFilePath(file);
                 if (System.IO.File.Exists(filepath))
                 {
@@ -179,6 +181,8 @@ namespace Oqtane.Controllers
                     }
                 }
 
+                _files.DeleteFile(id);
+                _syncManager.AddSyncEvent(_alias.TenantId, EntityNames.File, file.FileId, SyncEventActions.Delete);
                 _logger.Log(LogLevel.Information, this, LogFunction.Delete, "File Deleted {File}", file);
             }
             else
@@ -250,11 +254,12 @@ namespace Oqtane.Controllers
                     if (file != null)
                     {
                         file = _files.AddFile(file);
+                        _syncManager.AddSyncEvent(_alias.TenantId, EntityNames.File, file.FileId, SyncEventActions.Create);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.Log(LogLevel.Error, this, LogFunction.Create, "File Could Not Be Downloaded From Url {Url} {Error}", url, ex.Message);
+                    _logger.Log(LogLevel.Error, this, LogFunction.Create, ex, "File Could Not Be Downloaded From Url {Url} {Error}", url, ex.Message);
                 }
             }
             else
@@ -275,9 +280,17 @@ namespace Oqtane.Controllers
                 return;
             }
 
-            if (!formfile.FileName.IsPathOrFileValid())
+            // ensure filename is valid
+            string token = ".part_";
+            if (!formfile.FileName.IsPathOrFileValid() || !formfile.FileName.Contains(token))
             {
-                HttpContext.Response.StatusCode = (int)HttpStatusCode.Conflict;
+                return;
+            }
+
+            // check for allowable file extensions (ignore token)
+            var extension = Path.GetExtension(formfile.FileName.Substring(0, formfile.FileName.IndexOf(token))).Replace(".", "");
+            if (!Constants.UploadableFiles.Split(',').Contains(extension.ToLower()))
+            {
                 return;
             }
 
@@ -315,7 +328,8 @@ namespace Oqtane.Controllers
                     var file = CreateFile(upload, FolderId, Path.Combine(folderPath, upload));
                     if (file != null)
                     {
-                        _files.AddFile(file);
+                        file = _files.AddFile(file);
+                        _syncManager.AddSyncEvent(_alias.TenantId, EntityNames.File, file.FileId, SyncEventActions.Create);
                     }
                 }
             }
@@ -330,9 +344,9 @@ namespace Oqtane.Controllers
         {
             string merged = "";
 
-            // parse the filename which is in the format of filename.ext.part_x_y
+            // parse the filename which is in the format of filename.ext.part_001_999
             string token = ".part_";
-            string parts = Path.GetExtension(filename)?.Replace(token, ""); // returns "x_y"
+            string parts = Path.GetExtension(filename)?.Replace(token, ""); // returns "001_999"
             int totalparts = int.Parse(parts?.Substring(parts.IndexOf("_") + 1));
 
             filename = Path.GetFileNameWithoutExtension(filename); // base filename
@@ -369,23 +383,15 @@ namespace Oqtane.Controllers
                         System.IO.File.Delete(filepart);
                     }
 
-                    // check for allowable file extensions
-                    if (!Constants.UploadableFiles.Split(',').Contains(Path.GetExtension(filename)?.ToLower().Replace(".", "")))
+                    // remove file if it already exists
+                    if (System.IO.File.Exists(Path.Combine(folder, filename)))
                     {
-                        System.IO.File.Delete(Path.Combine(folder, filename + ".tmp"));
+                        System.IO.File.Delete(Path.Combine(folder, filename));
                     }
-                    else
-                    {
-                        // remove file if it already exists
-                        if (System.IO.File.Exists(Path.Combine(folder, filename)))
-                        {
-                            System.IO.File.Delete(Path.Combine(folder, filename));
-                        }
 
-                        // rename file now that the entire process is completed
-                        System.IO.File.Move(Path.Combine(folder, filename + ".tmp"), Path.Combine(folder, filename));
-                        _logger.Log(LogLevel.Information, this, LogFunction.Create, "File Uploaded {File}", Path.Combine(folder, filename));
-                    }
+                    // rename file now that the entire process is completed
+                    System.IO.File.Move(Path.Combine(folder, filename + ".tmp"), Path.Combine(folder, filename));
+                    _logger.Log(LogLevel.Information, this, LogFunction.Create, "File Uploaded {File}", Path.Combine(folder, filename));
 
                     merged = filename;
                 }
@@ -393,8 +399,7 @@ namespace Oqtane.Controllers
 
             // clean up file parts which are more than 2 hours old ( which can happen if a prior file upload failed )
             var cleanupFiles = Directory.EnumerateFiles(folder, "*" + token + "*")
-                .Where(f => Path.GetExtension(f).StartsWith(token));
-
+                .Where(f => Path.GetExtension(f).StartsWith(token) && !Path.GetFileName(f).StartsWith(filename));
             foreach (var file in cleanupFiles)
             {
                 var createdDate = System.IO.File.GetCreationTime(file).ToUniversalTime();
@@ -486,10 +491,15 @@ namespace Oqtane.Controllers
                 var filepath = _files.GetFilePath(file);
                 if (System.IO.File.Exists(filepath))
                 {
-                    var result = asAttachment
-                        ? PhysicalFile(filepath, file.GetMimeType(), file.Name)
-                        : PhysicalFile(filepath, file.GetMimeType());
-                    return result;
+                    if (asAttachment)
+                    {
+                        _syncManager.AddSyncEvent(_alias.TenantId, EntityNames.File, file.FileId, "Download");
+                        return PhysicalFile(filepath, file.GetMimeType(), file.Name);
+                    }
+                    else
+                    {
+                        return PhysicalFile(filepath, file.GetMimeType());
+                    }
                 }
                 else
                 {
@@ -503,7 +513,7 @@ namespace Oqtane.Controllers
                 HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
             }
 
-            string errorPath = Path.Combine(GetFolderPath("images"), "error.png");
+            string errorPath = Path.Combine(GetFolderPath("wwwroot/images"), "error.png");
             return System.IO.File.Exists(errorPath) ? PhysicalFile(errorPath, MimeUtilities.GetMimeType(errorPath)) : null;
         }
 
@@ -568,7 +578,7 @@ namespace Oqtane.Controllers
                 HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
             }
 
-            string errorPath = Path.Combine(GetFolderPath("images"), "error.png");
+            string errorPath = Path.Combine(GetFolderPath("wwwroot/images"), "error.png");
             return System.IO.File.Exists(errorPath) ? PhysicalFile(errorPath, MimeUtilities.GetMimeType(errorPath)) : null;
         }
 
@@ -600,9 +610,9 @@ namespace Oqtane.Controllers
                     }
                 }
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
-                _logger.Log(LogLevel.Error, this, LogFunction.Security, "Error Creating Image For File {FilePath} {Width} {Height} {Mode} {Rotate} {Error}", filepath, width, height, mode, rotate, ex.Message);
+                _logger.Log(LogLevel.Error, this, LogFunction.Security, ex, "Error Creating Image For File {FilePath} {Width} {Height} {Mode} {Rotate} {Error}", filepath, width, height, mode, rotate, ex.Message);
                 imagepath = "";
             }
 

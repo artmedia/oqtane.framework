@@ -1,16 +1,13 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Oqtane.Infrastructure;
 using Oqtane.Shared;
-using Oqtane.Modules;
 using Oqtane.Models;
-using Oqtane.Themes;
 using System;
 using System.Linq;
 using System.Reflection;
 using Oqtane.Repository;
 using Microsoft.AspNetCore.Localization;
 using Microsoft.Extensions.Configuration;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
@@ -20,6 +17,10 @@ using System.Security.Claims;
 using System.Net;
 using Microsoft.Extensions.Primitives;
 using Oqtane.Enums;
+using Oqtane.Security;
+using Oqtane.Extensions;
+using Oqtane.Themes;
+using Oqtane.UI;
 
 namespace Oqtane.Pages
 {
@@ -30,6 +31,7 @@ namespace Oqtane.Pages
         private readonly ILocalizationManager _localizationManager;
         private readonly ILanguageRepository _languages;
         private readonly IAntiforgery _antiforgery;
+        private readonly IJwtManager _jwtManager;
         private readonly ISiteRepository _sites;
         private readonly IPageRepository _pages;
         private readonly IUrlMappingRepository _urlMappings;
@@ -38,13 +40,14 @@ namespace Oqtane.Pages
         private readonly ISettingRepository _settings;
         private readonly ILogManager _logger;
 
-        public HostModel(IConfigManager configuration, ITenantManager tenantManager, ILocalizationManager localizationManager, ILanguageRepository languages, IAntiforgery antiforgery, ISiteRepository sites, IPageRepository pages, IUrlMappingRepository urlMappings, IVisitorRepository visitors, IAliasRepository aliases, ISettingRepository settings, ILogManager logger)
+        public HostModel(IConfigManager configuration, ITenantManager tenantManager, ILocalizationManager localizationManager, ILanguageRepository languages, IAntiforgery antiforgery, IJwtManager jwtManager, ISiteRepository sites, IPageRepository pages, IUrlMappingRepository urlMappings, IVisitorRepository visitors, IAliasRepository aliases, ISettingRepository settings, ILogManager logger)
         {
             _configuration = configuration;
             _tenantManager = tenantManager;
             _localizationManager = localizationManager;
             _languages = languages;
             _antiforgery = antiforgery;
+            _jwtManager = jwtManager;
             _sites = sites;
             _pages = pages;
             _urlMappings = urlMappings;
@@ -56,8 +59,9 @@ namespace Oqtane.Pages
 
         public string Language = "en";
         public string AntiForgeryToken = "";
+        public string AuthorizationToken = "";
         public string Runtime = "Server";
-        public RenderMode RenderMode = RenderMode.Server;
+        public string RenderMode = "ServerPrerendered";
         public int VisitorId = -1;
         public string RemoteIPAddress = "";
         public string HeadResources = "";
@@ -66,7 +70,7 @@ namespace Oqtane.Pages
         public string Meta = "";
         public string FavIcon = "favicon.ico";
         public string PWAScript = "";
-        public string ThemeType = "";
+        public string ReconnectScript = "";
         public string Message = "";
 
         public IActionResult OnGet()
@@ -81,10 +85,10 @@ namespace Oqtane.Pages
 
             if (_configuration.GetSection("RenderMode").Exists())
             {
-                RenderMode = (RenderMode)Enum.Parse(typeof(RenderMode), _configuration.GetSection("RenderMode").Value, true);
+                RenderMode = _configuration.GetSection("RenderMode").Value;
             }
 
-            // if framework is installed 
+            // if framework is installed
             if (_configuration.IsInstalled())
             {
                 var alias = _tenantManager.GetAlias();
@@ -110,7 +114,7 @@ namespace Oqtane.Pages
                     }
 
                     var site = _sites.GetSite(alias.SiteId);
-                    if (site != null && !site.IsDeleted)
+                    if (site != null && !site.IsDeleted && site.Runtime != "Hybrid")
                     {
                         Route route = new Route(url, alias.Path);
 
@@ -120,18 +124,33 @@ namespace Oqtane.Pages
                         }
                         if (!string.IsNullOrEmpty(site.RenderMode))
                         {
-                            RenderMode = (RenderMode)Enum.Parse(typeof(RenderMode), site.RenderMode, true);
+                            RenderMode = site.RenderMode;
                         }
                         if (site.FaviconFileId != null)
                         {
-                            FavIcon = Utilities.ContentUrl(alias, site.FaviconFileId.Value);
+                            FavIcon = Utilities.FileUrl(alias, site.FaviconFileId.Value);
+                        }
+                        if (Runtime == "Server")
+                        {
+                            ReconnectScript = CreateReconnectScript();
                         }
                         if (site.PwaIsEnabled && site.PwaAppIconFileId != null && site.PwaSplashIconFileId != null)
                         {
                             PWAScript = CreatePWAScript(alias, site, route);
                         }
                         Title = site.Name;
-                        ThemeType = site.DefaultThemeType;
+                        var ThemeType = site.DefaultThemeType;
+
+                        // get jwt token for downstream APIs
+                        if (User.Identity.IsAuthenticated)
+                        {
+                            var sitesettings = HttpContext.GetSiteSettings();
+                            var secret = sitesettings.GetValue("JwtOptions:Secret", "");
+                            if (!string.IsNullOrEmpty(secret))
+                            {
+                                AuthorizationToken = _jwtManager.GenerateToken(alias, (ClaimsIdentity)User.Identity, secret, sitesettings.GetValue("JwtOptions:Issuer", ""), sitesettings.GetValue("JwtOptions:Audience", ""), int.Parse(sitesettings.GetValue("JwtOptions:Lifetime", "20")));
+                            }
+                        }
 
                         if (site.VisitorTracking)
                         {
@@ -139,7 +158,11 @@ namespace Oqtane.Pages
                         }
 
                         var page = _pages.GetPage(route.PagePath, site.SiteId);
-                        if (page != null)
+                        if (page == null && route.PagePath == "" && site.HomePageId != null)
+                        {
+                            page = _pages.GetPage(site.HomePageId.Value);
+                        }
+                        if (page != null && !page.IsDeleted)
                         {
                             // set page title
                             if (!string.IsNullOrEmpty(page.Title))
@@ -157,6 +180,7 @@ namespace Oqtane.Pages
                             {
                                 ThemeType = page.ThemeType;
                             }
+                            ProcessThemeResources(ThemeType, alias);
                         }
                         else // page not found
                         {
@@ -167,15 +191,20 @@ namespace Oqtane.Pages
                                 url = (urlMapping.MappedUrl.StartsWith("http")) ? urlMapping.MappedUrl : route.SiteUrl + "/" + urlMapping.MappedUrl;
                                 return RedirectPermanent(url);
                             }
+                            else
+                            {
+                                if (route.PagePath != "404")
+                                {
+                                    return RedirectPermanent(route.SiteUrl + "/404");
+                                }
+                            }
                         }
 
                         // include global resources
                         var assemblies = AppDomain.CurrentDomain.GetOqtaneAssemblies();
                         foreach (Assembly assembly in assemblies)
                         {
-                            ProcessHostResources(assembly);
-                            ProcessModuleControls(assembly);
-                            ProcessThemeControls(assembly);
+                            ProcessHostResources(assembly, alias);
                         }
 
                         // set culture if not specified
@@ -196,7 +225,7 @@ namespace Oqtane.Pages
                             SetLocalizationCookie(culture);
                         }
 
-                        // set language for page 
+                        // set language for page
                         if (!string.IsNullOrEmpty(culture))
                         {
                             // localization cookie value in form of c=en|uic=en
@@ -206,7 +235,7 @@ namespace Oqtane.Pages
                     }
                     else
                     {
-                        Message = "Site Is Either Disabled Or Not Configured Correctly";
+                        Message = "Site Is Disabled";
                     }
                 }
                 else
@@ -223,6 +252,7 @@ namespace Oqtane.Pages
             {
                 // get request attributes
                 string useragent = (Request.Headers[HeaderNames.UserAgent] != StringValues.Empty) ? Request.Headers[HeaderNames.UserAgent] : "(none)";
+                useragent = (useragent.Length > 256) ? useragent.Substring(0, 256) : useragent;
                 string language = (Request.Headers[HeaderNames.AcceptLanguage] != StringValues.Empty) ? Request.Headers[HeaderNames.AcceptLanguage] : "";
                 language = (language.Contains(",")) ? language.Substring(0, language.IndexOf(",")) : language;
                 language = (language.Contains(";")) ? language.Substring(0, language.IndexOf(";")) : language;
@@ -247,9 +277,9 @@ namespace Oqtane.Pages
                 string url = Request.GetEncodedUrl();
                 string referrer = (Request.Headers[HeaderNames.Referer] != StringValues.Empty) ? Request.Headers[HeaderNames.Referer] : "";
                 int? userid = null;
-                if (User.HasClaim(item => item.Type == ClaimTypes.PrimarySid))
+                if (User.HasClaim(item => item.Type == ClaimTypes.NameIdentifier))
                 {
-                    userid = int.Parse(User.Claims.First(item => item.Type == ClaimTypes.PrimarySid).Value);
+                    userid = int.Parse(User.Claims.First(item => item.Type == ClaimTypes.NameIdentifier).Value);
                 }
 
                 // check if cookie already exists
@@ -350,44 +380,64 @@ namespace Oqtane.Pages
         private string CreatePWAScript(Alias alias, Site site, Route route)
         {
             return
-            "<script id=\"app-pwa\">" +
-                "setTimeout(() => { " +
-                    "var manifest = { " +
-                        "\"name\": \"" + site.Name + "\", " +
-                        "\"short_name\": \"" + site.Name + "\", " +
-                        "\"start_url\": \"" + route.SiteUrl + "/\", " +
-                        "\"display\": \"standalone\", " +
-                        "\"background_color\": \"#fff\", " +
-                        "\"description\": \"" + site.Name + "\", " +
-                        "\"icons\": [{ " +
-                            "\"src\": \"" + route.RootUrl + Utilities.ContentUrl(alias, site.PwaAppIconFileId.Value) + "\", " +
-                            "\"sizes\": \"192x192\", " +
-                            "\"type\": \"image/png\" " +
-                            "}, { " +
-                            "\"src\": \"" + route.RootUrl + Utilities.ContentUrl(alias, site.PwaSplashIconFileId.Value) + "\", " +
-                            "\"sizes\": \"512x512\", " +
-                            "\"type\": \"image/png\" " +
-                        "}] " +
-                    "}; " +
-                    "const serialized = JSON.stringify(manifest); " +
-                    "const blob = new Blob([serialized], {type: 'application/javascript'}); " +
-                    "const url = URL.createObjectURL(blob); " +
-                    "document.getElementById('app-manifest').setAttribute('href', url); " +
-                "} " +
-                ", 1000);" +
+            "<script>" + Environment.NewLine +
+            "    // PWA Manifest" + Environment.NewLine +
+            "    setTimeout(() => {" + Environment.NewLine +
+            "        var manifest = {" + Environment.NewLine +
+            "            \"name\": \"" + site.Name + "\"," + Environment.NewLine +
+            "            \"short_name\": \"" + site.Name + "\"," + Environment.NewLine +
+            "            \"start_url\": \"" + route.SiteUrl + "/\"," + Environment.NewLine +
+            "            \"display\": \"standalone\"," + Environment.NewLine +
+            "            \"background_color\": \"#fff\"," + Environment.NewLine +
+            "            \"description\": \"" + site.Name + "\"," + Environment.NewLine +
+            "            \"icons\": [{" + Environment.NewLine +
+            "                \"src\": \"" + route.RootUrl + Utilities.FileUrl(alias, site.PwaAppIconFileId.Value) + "\"," + Environment.NewLine +
+            "                \"sizes\": \"192x192\"," + Environment.NewLine +
+            "                \"type\": \"image/png\"" + Environment.NewLine +
+            "                }, {" + Environment.NewLine +
+            "                \"src\": \"" + route.RootUrl + Utilities.FileUrl(alias, site.PwaSplashIconFileId.Value) + "\"," + Environment.NewLine +
+            "                \"sizes\": \"512x512\"," + Environment.NewLine +
+            "                \"type\": \"image/png\"" + Environment.NewLine +
+            "            }]" + Environment.NewLine +
+            "       };" + Environment.NewLine +
+            "       const serialized = JSON.stringify(manifest);" + Environment.NewLine +
+            "       const blob = new Blob([serialized], {type: 'application/javascript'});" + Environment.NewLine +
+            "       const url = URL.createObjectURL(blob);" + Environment.NewLine +
+            "       document.getElementById('app-manifest').setAttribute('href', url);" + Environment.NewLine +
+            "    }, 1000);" + Environment.NewLine +
             "</script>" + Environment.NewLine +
-            "<script id=\"app-serviceworker\">" +
-                "if ('serviceWorker' in navigator) { " +
-                    "navigator.serviceWorker.register('/service-worker.js').then(function(registration) { " +
-                        "console.log('ServiceWorker Registration Successful'); " +
-                    "}).catch (function(err) { " +
-                        "console.log('ServiceWorker Registration Failed ', err); " +
-                    "}); " +
-                "};" +
+            "<script>" + Environment.NewLine +
+            "    // PWA Service Worker" + Environment.NewLine +
+            "    if ('serviceWorker' in navigator) {" + Environment.NewLine +
+            "        navigator.serviceWorker.register('/service-worker.js').then(function(registration) {" + Environment.NewLine +
+            "            console.log('ServiceWorker Registration Successful');" + Environment.NewLine +
+            "        }).catch (function(err) {" + Environment.NewLine +
+            "            console.log('ServiceWorker Registration Failed ', err);" + Environment.NewLine +
+            "        });" + Environment.NewLine +
+            "    };" + Environment.NewLine +
             "</script>";
         }
 
-        private void ProcessHostResources(Assembly assembly)
+        private string CreateReconnectScript()
+        {
+            return
+            "<script>" + Environment.NewLine +
+            "    // Blazor Server Reconnect" + Environment.NewLine +
+            "    new MutationObserver((mutations, observer) => {" + Environment.NewLine +
+            "        if (document.querySelector('#components-reconnect-modal h5 a')) {" + Environment.NewLine +
+            "            async function attemptReload() {" + Environment.NewLine +
+            "                await fetch('');" + Environment.NewLine +
+            "                location.reload();" + Environment.NewLine +
+            "            }" + Environment.NewLine +
+            "            observer.disconnect();" + Environment.NewLine +
+            "            attemptReload();" + Environment.NewLine +
+            "            setInterval(attemptReload, 5000);" + Environment.NewLine +
+            "        }" + Environment.NewLine +
+            "    }).observe(document.body, { childList: true, subtree: true });" + Environment.NewLine +
+            "</script>";
+        }
+
+        private void ProcessHostResources(Assembly assembly, Alias alias)
         {
             var types = assembly.GetTypes().Where(item => item.GetInterfaces().Contains(typeof(IHostResources)));
             foreach (var type in types)
@@ -395,79 +445,59 @@ namespace Oqtane.Pages
                 var obj = Activator.CreateInstance(type) as IHostResources;
                 foreach (var resource in obj.Resources)
                 {
-                    ProcessResource(resource, 0);
+                    resource.Level = ResourceLevel.App;
+                    ProcessResource(resource, 0, alias);
                 }
             }
         }
 
-        private void ProcessModuleControls(Assembly assembly)
+        private void ProcessThemeResources(string ThemeType, Alias alias)
         {
-            var types = assembly.GetTypes().Where(item => item.GetInterfaces().Contains(typeof(IModuleControl)));
-            foreach (var type in types)
+            var type = Type.GetType(ThemeType);
+            if (type != null)
             {
-                // Check if type should be ignored
-                if (type.IsOqtaneIgnore()) continue;
-
-                var obj = Activator.CreateInstance(type) as IModuleControl;
-                if (obj.Resources != null)
-                {
-                    foreach (var resource in obj.Resources)
-                    {
-                        if (resource.Declaration == ResourceDeclaration.Global)
-                        {
-                            ProcessResource(resource, 0);
-                        }
-                    }
-                }
-            }
-        }
-
-        private void ProcessThemeControls(Assembly assembly)
-        {
-            var types = assembly.GetTypes().Where(item => item.GetInterfaces().Contains(typeof(IThemeControl)));
-            foreach (var type in types)
-            {
-                // Check if type should be ignored
-                if (type.IsOqtaneIgnore()) continue;
-
                 var obj = Activator.CreateInstance(type) as IThemeControl;
                 if (obj.Resources != null)
                 {
-                    int count = 0; // required for local stylesheets for current theme
-                    foreach (var resource in obj.Resources)
+                    int count = 1;
+                    foreach (var resource in obj.Resources.Where(item => item.ResourceType == ResourceType.Stylesheet))
                     {
-                        if (resource.Declaration == ResourceDeclaration.Global || (Utilities.GetFullTypeName(type.AssemblyQualifiedName) == ThemeType && resource.ResourceType == ResourceType.Stylesheet))
-                        {
-                            ProcessResource(resource, count++);
-                        }
+                        resource.Level = ResourceLevel.Page;
+                        ProcessResource(resource, count++, alias);
                     }
                 }
             }
         }
-        private void ProcessResource(Resource resource, int count)
+
+        private void ProcessResource(Resource resource, int count, Alias alias)
         {
+            var url = (resource.Url.Contains("://")) ? resource.Url : alias.BaseUrl + resource.Url;
             switch (resource.ResourceType)
             {
                 case ResourceType.Stylesheet:
-                    if (!HeadResources.Contains(resource.Url, StringComparison.OrdinalIgnoreCase))
+                    if (!HeadResources.Contains(url, StringComparison.OrdinalIgnoreCase))
                     {
-                        var id = (resource.Declaration == ResourceDeclaration.Global) ? "" : "id=\"app-stylesheet-" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff") + "-" + count.ToString("00") + "\" ";
-                        HeadResources += "<link " + id + "rel=\"stylesheet\" href=\"" + resource.Url + "\"" + CrossOrigin(resource.CrossOrigin) + Integrity(resource.Integrity) + " />" + Environment.NewLine;
+                        string id = "";
+                        if (resource.Level == ResourceLevel.Page)
+                        {
+                            id = "id=\"app-stylesheet-" + resource.Level.ToString().ToLower() + "-" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff") + "-" + count.ToString("00") + "\" ";
+                        }
+                        HeadResources += "<link " + id + "rel=\"stylesheet\" href=\"" + url + "\"" + CrossOrigin(resource.CrossOrigin) + Integrity(resource.Integrity) + " type=\"text/css\"/>" + Environment.NewLine;
                     }
                     break;
                 case ResourceType.Script:
                     if (resource.Location == Shared.ResourceLocation.Body)
                     {
-                        if (!BodyResources.Contains(resource.Url, StringComparison.OrdinalIgnoreCase))
+                        if (!BodyResources.Contains(url, StringComparison.OrdinalIgnoreCase))
                         {
-                            BodyResources += "<script src=\"" + resource.Url + "\"" + CrossOrigin(resource.CrossOrigin) + Integrity(resource.Integrity) + "></script>" + Environment.NewLine;
+                            BodyResources += "<script src=\"" + url + "\"" + CrossOrigin(resource.CrossOrigin) + Integrity(resource.Integrity) + "></script>" + Environment.NewLine;
                         }
                     }
                     else
                     {
                         if (!HeadResources.Contains(resource.Url, StringComparison.OrdinalIgnoreCase))
                         {
-                            HeadResources += "<script src=\"" + resource.Url + "\"" + CrossOrigin(resource.CrossOrigin) + Integrity(resource.Integrity) + "></script>" + Environment.NewLine;
+                            HeadResources += "<script src=\"" + url + "\"" + CrossOrigin(resource.CrossOrigin) + Integrity(resource.Integrity) + "></script>" + Environment.NewLine;
                         }
                     }
                     break;

@@ -98,17 +98,28 @@ namespace Oqtane.Shared
             return NavigateUrl(alias, path, parameters);
         }
 
-        public static string ContentUrl(Alias alias, int fileId)
+        public static string FileUrl(Alias alias, string folderpath, string filename)
         {
-            return ContentUrl(alias, fileId, false);
+            return FileUrl(alias, folderpath, filename, false);
         }
 
-        public static string ContentUrl(Alias alias, int fileId, bool asAttachment)
+        public static string FileUrl(Alias alias, string folderpath, string filename, bool download)
         {
             var aliasUrl = (alias != null && !string.IsNullOrEmpty(alias.Path)) ? "/" + alias.Path : "";
-            var method = asAttachment ? "/attach" : "";
+            var querystring = (download) ? "?download" : "";
+            return $"{alias?.BaseUrl}{aliasUrl}{Constants.FileUrl}{folderpath.Replace("\\", "/")}{filename}{querystring}";
+        }
 
-            return $"{aliasUrl}{Constants.ContentUrl}{fileId}{method}";
+        public static string FileUrl(Alias alias, int fileid)
+        {
+            return FileUrl(alias, fileid, false);
+        }
+
+        public static string FileUrl(Alias alias, int fileid, bool download)
+        {
+            var aliasUrl = (alias != null && !string.IsNullOrEmpty(alias.Path)) ? "/" + alias.Path : "";
+            var querystring = (download) ? "?download" : "";
+            return $"{alias?.BaseUrl}{aliasUrl}{Constants.FileUrl}id/{fileid}{querystring}";
         }
 
         public static string ImageUrl(Alias alias, int fileId, int width, int height, string mode)
@@ -118,28 +129,34 @@ namespace Oqtane.Shared
 
         public static string ImageUrl(Alias alias, int fileId, int width, int height, string mode, string position, string background, int rotate, bool recreate)
         {
-            var aliasUrl = (alias != null && !string.IsNullOrEmpty(alias.Path)) ? "/" + alias.Path : "";
+            var url = (alias != null && !string.IsNullOrEmpty(alias.Path)) ? "/" + alias.Path : "";
             mode = string.IsNullOrEmpty(mode) ? "crop" : mode;
             position = string.IsNullOrEmpty(position) ? "center" : position;
             background = string.IsNullOrEmpty(background) ? "000000" : background;
-            return $"{aliasUrl}{Constants.ImageUrl}{fileId}/{width}/{height}/{mode}/{position}/{background}/{rotate}/{recreate}";
+            return $"{alias?.BaseUrl}{url}{Constants.ImageUrl}{fileId}/{width}/{height}/{mode}/{position}/{background}/{rotate}/{recreate}";
         }
 
         public static string TenantUrl(Alias alias, string url)
         {
             url = (!url.StartsWith("/")) ? "/" + url : url;
-            return (alias != null && !string.IsNullOrEmpty(alias.Path)) ? "/" + alias.Path + url : url;
+            url = (alias != null && !string.IsNullOrEmpty(alias.Path)) ? "/" + alias.Path + url : url;
+            return $"{alias?.BaseUrl}{url}";
         }
 
         public static string FormatContent(string content, Alias alias, string operation)
         {
+            var aliasUrl = (alias != null && !string.IsNullOrEmpty(alias.Path)) ? "/" + alias.Path : "";
             switch (operation)
             {
                 case "save":
+                    content = content.Replace(alias?.BaseUrl + aliasUrl + Constants.FileUrl, Constants.FileUrl);
+                    // legacy
                     content = content.Replace(UrlCombine("Content", "Tenants", alias.TenantId.ToString(), "Sites", alias.SiteId.ToString()), "[siteroot]");
                     content = content.Replace(alias.Path + Constants.ContentUrl, Constants.ContentUrl);
                     break;
                 case "render":
+                    content = content.Replace(Constants.FileUrl, alias?.BaseUrl + aliasUrl + Constants.FileUrl);
+                    // legacy
                     content = content.Replace("[siteroot]", UrlCombine("Content", "Tenants", alias.TenantId.ToString(), "Sites", alias.SiteId.ToString()));
                     content = content.Replace(Constants.ContentUrl, alias.Path + Constants.ContentUrl);
                     break;
@@ -360,7 +377,8 @@ namespace Oqtane.Shared
         }
 
         public static string UrlCombine(params string[] segments)
-        {
+{
+            segments = segments.Where(item => !string.IsNullOrEmpty(item) && item != "/" && item != "\\").ToArray();
             for (int i = 1; i < segments.Length; i++)
             {
                 segments[i] = segments[i].Replace("\\", "/");
@@ -437,6 +455,65 @@ namespace Oqtane.Shared
         public static string LogMessage(object @class, string message)
         {
             return $"[{@class.GetType()}] {message}";
+        }
+
+        public static DateTime? LocalDateAndTimeAsUtc(DateTime? date, string time, TimeZoneInfo localTimeZone = null)
+        {
+            localTimeZone ??= TimeZoneInfo.Local;
+            if (date != null)
+            {
+                if (!string.IsNullOrEmpty(time))
+                {
+                    return TimeZoneInfo.ConvertTime(DateTime.Parse(date.Value.Date.ToShortDateString() + " " + time), localTimeZone, TimeZoneInfo.Utc);
+                }
+                return TimeZoneInfo.ConvertTime(date.Value.Date, localTimeZone, TimeZoneInfo.Utc);
+            }
+            return null;
+        }
+
+        public static (DateTime? date, string time) UtcAsLocalDateAndTime(DateTime? dateTime, TimeZoneInfo timeZone = null)
+        {
+            timeZone ??= TimeZoneInfo.Local;
+            DateTime? localDateTime = null;
+            string localTime = string.Empty;
+
+            if (dateTime.HasValue && dateTime?.Kind != DateTimeKind.Local)
+            {
+                if (dateTime?.Kind == DateTimeKind.Unspecified)
+                {
+                    // Treat Unspecified as Utc not Local. This is due to EF Core, on some databases, after retrieval will have DateTimeKind as Unspecified.
+                    // All values in database should be UTC.
+                    // Normal .net conversion treats Unspecified as local.
+                    // https://docs.microsoft.com/en-us/dotnet/api/system.timezoneinfo.converttime?view=net-6.0
+                    localDateTime = TimeZoneInfo.ConvertTime(new DateTime(dateTime.Value.Ticks, DateTimeKind.Utc), timeZone);
+                }
+                else
+                {
+                    localDateTime = TimeZoneInfo.ConvertTime(dateTime.Value, timeZone);
+                }
+            }
+
+            if (localDateTime != null && localDateTime.Value.TimeOfDay.TotalSeconds != 0)
+            {
+                localTime = localDateTime.Value.ToString("HH:mm");
+            }
+
+            return (localDateTime?.Date, localTime);
+        }
+
+        [Obsolete("ContentUrl(Alias alias, int fileId) is deprecated. Use FileUrl(Alias alias, int fileId) instead.", false)]
+        public static string ContentUrl(Alias alias, int fileId)
+        {
+            return ContentUrl(alias, fileId, false);
+        }
+
+        [Obsolete("ContentUrl(Alias alias, int fileId, bool asAttachment) is deprecated. Use FileUrl(Alias alias, int fileId, bool download) instead.", false)]
+        public static string ContentUrl(Alias alias, int fileId, bool asAttachment)
+        {
+            var aliasUrl = (alias != null && !string.IsNullOrEmpty(alias.Path)) ? "/" + alias.Path : "";
+            var method = asAttachment ? "/attach" : "";
+
+            return $"{alias?.BaseUrl}{aliasUrl}{Constants.ContentUrl}{fileId}{method}";
         }
     }
 }

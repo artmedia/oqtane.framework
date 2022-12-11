@@ -5,21 +5,16 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using Oqtane.Documentation;
 using Oqtane.Shared;
+using Oqtane.Modules.Controls;
 
 namespace Oqtane.Services
 {
     [PrivateApi("Don't show in the documentation, as everything should use the Interface")]
     public class ModuleService : ServiceBase, IModuleService
     {
-        
-        private readonly SiteState _siteState;
+        public ModuleService(HttpClient http, SiteState siteState) : base(http, siteState) { }
 
-        public ModuleService(HttpClient http, SiteState siteState) : base(http)
-        {
-            _siteState = siteState;
-        }
-
-        private string Apiurl => CreateApiUrl("Module", _siteState.Alias);
+        private string Apiurl => CreateApiUrl("Module");
 
         public async Task<List<Module>> GetModulesAsync(int siteId)
         {
@@ -50,14 +45,14 @@ namespace Oqtane.Services
             await DeleteAsync($"{Apiurl}/{moduleId.ToString()}");
         }
 
-        public async Task<bool> ImportModuleAsync(int moduleId, string content)
+        public async Task<bool> ImportModuleAsync(int moduleId, int pageId, string content)
         {
-            return await PostJsonAsync<string,bool>($"{Apiurl}/import?moduleid={moduleId}", content);
+            return await PostJsonAsync<string,bool>($"{Apiurl}/import?moduleid={moduleId}&pageid={pageId}", content);
         }
 
-        public async Task<string> ExportModuleAsync(int moduleId)
-        {
-            return await GetStringAsync($"{Apiurl}/export?moduleid={moduleId}");
+        public async Task<string> ExportModuleAsync(int moduleId, int pageId)
+{
+            return await GetStringAsync($"{Apiurl}/export?moduleid={moduleId}&pageid={pageId}");
         }
     }
 }

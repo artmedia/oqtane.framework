@@ -73,7 +73,7 @@ namespace Oqtane.Repository
             int start = segments.Length;
             for (int i = 0; i < segments.Length; i++)
             {
-                if (segments[i] == "api" || segments[i] == "pages" || segments[i] == Constants.ModuleDelimiter)
+                if (Constants.ReservedRoutes.Contains(segments[i]) || segments[i] == Constants.ModuleDelimiter)
                 {
                     start = i;
                     break;
@@ -96,7 +96,7 @@ namespace Oqtane.Repository
                 alias = new Alias();
                 alias.TenantId = aliases.First().TenantId;
                 alias.SiteId = aliases.First().SiteId;
-                alias.Name = url;
+                alias.Name = segments[0]; // root domain
                 alias.IsDefault = false;
                 alias = AddAlias(alias);
             }

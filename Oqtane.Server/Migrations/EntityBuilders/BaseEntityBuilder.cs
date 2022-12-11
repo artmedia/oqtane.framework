@@ -18,6 +18,7 @@ namespace Oqtane.Migrations.EntityBuilders
             _migrationBuilder = migrationBuilder;
             ActiveDatabase = database;
             ForeignKeys = new List<ForeignKey<TEntityBuilder>>();
+            Schema = null;
         }
 
         protected IDatabase ActiveDatabase { get; }
@@ -29,6 +30,20 @@ namespace Oqtane.Migrations.EntityBuilders
         protected PrimaryKey<TEntityBuilder> PrimaryKey { get; init; }
 
         protected List<ForeignKey<TEntityBuilder>> ForeignKeys { get; }
+
+        protected string Schema { get; init; }
+
+        private string RewriteSqlEntityTableName(string name)
+        {
+            if (Schema == null)
+            {
+                return RewriteName(name);
+            }
+            else
+            {
+                return $"{Schema}.{RewriteName(name)}";
+            }
+        }
 
         private string RewriteName(string name)
         {
@@ -49,7 +64,12 @@ namespace Oqtane.Migrations.EntityBuilders
 
         public void AddBooleanColumn(string name, bool nullable = false)
         {
-            _migrationBuilder.AddColumn<bool>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable);
+            _migrationBuilder.AddColumn<bool>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable, schema: Schema);
+        }
+
+        public void AddBooleanColumn(string name, bool nullable, bool defaultValue)
+        {
+            _migrationBuilder.AddColumn<bool>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable, defaultValue: defaultValue, schema: Schema);
         }
 
         protected OperationBuilder<AddColumnOperation> AddBooleanColumn(ColumnsBuilder table, string name, bool nullable = false)
@@ -57,9 +77,19 @@ namespace Oqtane.Migrations.EntityBuilders
             return table.Column<bool>(name: RewriteName(name), nullable: nullable);
         }
 
+        protected OperationBuilder<AddColumnOperation> AddBooleanColumn(ColumnsBuilder table, string name, bool nullable, bool defaultValue)
+        {
+            return table.Column<bool>(name: RewriteName(name), nullable: nullable, defaultValue: defaultValue);
+        }
+
         public void AddDateTimeColumn(string name, bool nullable = false)
         {
-            _migrationBuilder.AddColumn<DateTime>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable);
+            _migrationBuilder.AddColumn<DateTime>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable, schema: Schema);
+        }
+
+        public void AddDateTimeColumn(string name, bool nullable, DateTime defaultValue)
+        {
+            _migrationBuilder.AddColumn<DateTime>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable, defaultValue: defaultValue, schema: Schema);
         }
 
         protected OperationBuilder<AddColumnOperation> AddDateTimeColumn(ColumnsBuilder table, string name, bool nullable = false)
@@ -67,9 +97,19 @@ namespace Oqtane.Migrations.EntityBuilders
             return table.Column<DateTime>(name: RewriteName(name), nullable: nullable);
         }
 
+        protected OperationBuilder<AddColumnOperation> AddDateTimeColumn(ColumnsBuilder table, string name, bool nullable, DateTime defaultValue)
+        {
+            return table.Column<DateTime>(name: RewriteName(name), nullable: nullable, defaultValue: defaultValue);
+        }
+
         public void AddDateTimeOffsetColumn(string name, bool nullable = false)
         {
-            _migrationBuilder.AddColumn<DateTimeOffset>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable);
+            _migrationBuilder.AddColumn<DateTimeOffset>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable, schema: Schema);
+        }
+
+        public void AddDateTimeOffsetColumn(string name, bool nullable, DateTimeOffset defaultValue)
+        {
+            _migrationBuilder.AddColumn<DateTimeOffset>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable, defaultValue: defaultValue, schema: Schema);
         }
 
         protected OperationBuilder<AddColumnOperation> AddDateTimeOffsetColumn(ColumnsBuilder table, string name, bool nullable = false)
@@ -77,9 +117,19 @@ namespace Oqtane.Migrations.EntityBuilders
             return table.Column<DateTimeOffset>(name: RewriteName(name), nullable: nullable);
         }
 
+        protected OperationBuilder<AddColumnOperation> AddDateTimeOffsetColumn(ColumnsBuilder table, string name, bool nullable, DateTimeOffset defaultValue)
+        {
+            return table.Column<DateTimeOffset>(name: RewriteName(name), nullable: nullable, defaultValue: defaultValue);
+        }
+
         public void AddIntegerColumn(string name, bool nullable = false)
         {
-            _migrationBuilder.AddColumn<int>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable);
+            _migrationBuilder.AddColumn<int>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable, schema: Schema);
+        }
+
+        public void AddIntegerColumn(string name, bool nullable, int defaultValue)
+        {
+            _migrationBuilder.AddColumn<int>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable, defaultValue: defaultValue, schema: Schema);
         }
 
         protected OperationBuilder<AddColumnOperation> AddIntegerColumn(ColumnsBuilder table, string name, bool nullable = false)
@@ -87,9 +137,19 @@ namespace Oqtane.Migrations.EntityBuilders
             return table.Column<int>(name: RewriteName(name), nullable: nullable);
         }
 
+        protected OperationBuilder<AddColumnOperation> AddIntegerColumn(ColumnsBuilder table, string name, bool nullable, int defaultValue)
+        {
+            return table.Column<int>(name: RewriteName(name), nullable: nullable, defaultValue: defaultValue);
+        }
+
         public void AddMaxStringColumn(string name, bool nullable = false, bool unicode = true)
         {
-            _migrationBuilder.AddColumn<string>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable, unicode: unicode);
+            _migrationBuilder.AddColumn<string>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable, unicode: unicode, schema: Schema);
+        }
+
+        public void AddMaxStringColumn(string name, bool nullable, bool unicode, string defaultValue)
+        {
+            _migrationBuilder.AddColumn<string>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable, unicode: unicode, defaultValue: defaultValue, schema: Schema);
         }
 
         protected OperationBuilder<AddColumnOperation> AddMaxStringColumn(ColumnsBuilder table, string name, bool nullable = false, bool unicode = true)
@@ -97,9 +157,19 @@ namespace Oqtane.Migrations.EntityBuilders
             return table.Column<string>(name: RewriteName(name), nullable: nullable, unicode: unicode);
         }
 
+        protected OperationBuilder<AddColumnOperation> AddMaxStringColumn(ColumnsBuilder table, string name, bool nullable, bool unicode, string defaultValue)
+        {
+            return table.Column<string>(name: RewriteName(name), nullable: nullable, unicode: unicode, defaultValue: defaultValue);
+        }
+
         public void AddStringColumn(string name, int length, bool nullable = false, bool unicode = true)
         {
-            _migrationBuilder.AddColumn<string>(RewriteName(name), RewriteName(EntityTableName), maxLength: length, nullable: nullable, unicode: unicode);
+            _migrationBuilder.AddColumn<string>(RewriteName(name), RewriteName(EntityTableName), maxLength: length, nullable: nullable, unicode: unicode, schema: Schema);
+        }
+
+        public void AddStringColumn(string name, int length, bool nullable, bool unicode, string defaultValue)
+        {
+            _migrationBuilder.AddColumn<string>(RewriteName(name), RewriteName(EntityTableName), maxLength: length, nullable: nullable, unicode: unicode, defaultValue: defaultValue, schema: Schema);
         }
 
         protected OperationBuilder<AddColumnOperation> AddStringColumn(ColumnsBuilder table, string name, int length, bool nullable = false, bool unicode = true)
@@ -107,19 +177,45 @@ namespace Oqtane.Migrations.EntityBuilders
             return table.Column<string>(name: RewriteName(name), maxLength: length, nullable: nullable, unicode: unicode);
         }
 
-        public void AlterStringColumn(string name, int length, bool nullable = false, bool unicode = true)
+        protected OperationBuilder<AddColumnOperation> AddStringColumn(ColumnsBuilder table, string name, int length, bool nullable, bool unicode, string defaultValue)
         {
-            _migrationBuilder.AlterColumn<string>(RewriteName(name), RewriteName(EntityTableName), maxLength: length, nullable: nullable, unicode: unicode);
+            return table.Column<string>(name: RewriteName(name), maxLength: length, nullable: nullable, unicode: unicode, defaultValue: defaultValue);
         }
 
         public void AddDecimalColumn(string name, int precision, int scale, bool nullable = false)
         {
-            _migrationBuilder.AddColumn<decimal>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable, precision: precision, scale: scale);
+            _migrationBuilder.AddColumn<decimal>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable, precision: precision, scale: scale, schema: Schema);
+        }
+
+        public void AddDecimalColumn(string name, int precision, int scale, bool nullable, decimal defaultValue)
+        {
+            _migrationBuilder.AddColumn<decimal>(RewriteName(name), RewriteName(EntityTableName), nullable: nullable, precision: precision, scale: scale, defaultValue: defaultValue, schema: Schema);
         }
 
         protected OperationBuilder<AddColumnOperation> AddDecimalColumn(ColumnsBuilder table, string name, int precision, int scale, bool nullable = false)
         {
             return table.Column<decimal>(name: RewriteName(name), nullable: nullable, precision: precision, scale: scale);
+        }
+
+        protected OperationBuilder<AddColumnOperation> AddDecimalColumn(ColumnsBuilder table, string name, int precision, int scale, bool nullable, decimal defaultValue)
+        {
+            return table.Column<decimal>(name: RewriteName(name), nullable: nullable, precision: precision, scale: scale, defaultValue: defaultValue);
+        }
+
+        public void AlterStringColumn(string name, int length, bool nullable = false, bool unicode = true, string index = "")
+        {
+            if (index != "")
+            {
+                // indexes are in the form IndexName:Column1,Column2:Unique
+                var elements = index.Split(':');
+                index = RewriteName(elements[0]) + ":";
+                foreach (var column in elements[1].Split(','))
+                {
+                    index += RewriteName(column) + ",";
+                }
+                index = index.Substring(0, index.Length - 1) + ":" + elements[2];
+            }
+            ActiveDatabase.AlterStringColumn(_migrationBuilder, RewriteName(name), RewriteName(EntityTableName), length, nullable, unicode, index);
         }
 
         public void DropColumn(string name)
@@ -142,7 +238,8 @@ namespace Oqtane.Migrations.EntityBuilders
                 name: RewriteName(indexName),
                 table: RewriteName(EntityTableName),
                 column: RewriteName(columnName),
-                unique: isUnique);
+                unique: isUnique,
+                schema: Schema);
         }
 
         public virtual void AddForeignKey(string foreignKeyName, string columnName, string principalTable, string principalColumn, ReferentialAction onDelete)
@@ -153,7 +250,8 @@ namespace Oqtane.Migrations.EntityBuilders
                 column: RewriteName(columnName),
                 principalTable: RewriteName(principalTable),
                 principalColumn: RewriteName(principalColumn),
-                onDelete: onDelete );
+                onDelete: onDelete,
+                schema: Schema);
         }
 
         /// <summary>
@@ -168,7 +266,8 @@ namespace Oqtane.Migrations.EntityBuilders
                 name: RewriteName(indexName),
                 table: RewriteName(EntityTableName),
                 columns: columnNames.Select(RewriteName).ToArray(),
-                unique: isUnique);
+                unique: isUnique,
+                schema: Schema);
         }
 
         /// <summary>
@@ -177,7 +276,7 @@ namespace Oqtane.Migrations.EntityBuilders
         /// <param name="indexName">The name of the Index to drop</param>
         public virtual void DropIndex(string indexName)
         {
-            _migrationBuilder.DropIndex(RewriteName(indexName), RewriteName(EntityTableName));
+            _migrationBuilder.DropIndex(RewriteName(indexName), RewriteName(EntityTableName), schema: Schema);
         }
 
 
@@ -217,7 +316,8 @@ namespace Oqtane.Migrations.EntityBuilders
                     column: RewriteName(foreignKey.ColumnName),
                     principalTable: RewriteName(foreignKey.PrincipalTable),
                     principalColumn: RewriteName(foreignKey.PrincipalColumn),
-                    onDelete: foreignKey.OnDeleteAction);
+                    onDelete: foreignKey.OnDeleteAction,
+                    schema: Schema);
         }
 
         public void DropForeignKey(ForeignKey<TEntityBuilder> foreignKey)
@@ -227,7 +327,7 @@ namespace Oqtane.Migrations.EntityBuilders
 
         public void DropForeignKey(string keyName)
         {
-            _migrationBuilder.DropForeignKey(RewriteName(keyName), RewriteName(EntityTableName));
+            _migrationBuilder.DropForeignKey(RewriteName(keyName), RewriteName(EntityTableName), schema: Schema);
         }
 
 
@@ -238,7 +338,7 @@ namespace Oqtane.Migrations.EntityBuilders
         /// </summary>
         public void Create()
         {
-            _migrationBuilder.CreateTable(RewriteName(EntityTableName), BuildTable, null, AddKeys);
+            _migrationBuilder.CreateTable(RewriteName(EntityTableName), BuildTable, Schema, AddKeys);
         }
 
         /// <summary>
@@ -246,7 +346,7 @@ namespace Oqtane.Migrations.EntityBuilders
         /// </summary>
         public void Drop()
         {
-            _migrationBuilder.DropTable(RewriteName(EntityTableName));
+            _migrationBuilder.DropTable(RewriteName(EntityTableName), schema: Schema);
         }
 
 
@@ -254,7 +354,7 @@ namespace Oqtane.Migrations.EntityBuilders
 
         public void DeleteFromTable(string condition = "")
         {
-            var deleteSql = $"DELETE FROM {RewriteName(EntityTableName)} ";
+            var deleteSql = $"DELETE FROM {RewriteSqlEntityTableName(EntityTableName)} ";
             if(!string.IsNullOrEmpty(condition))
             {
                 deleteSql +=  $"WHERE {condition}";
@@ -274,7 +374,7 @@ namespace Oqtane.Migrations.EntityBuilders
 
         public void UpdateColumn(string columnName, string value, string type, string condition)
         {
-            var updateSql = $"UPDATE {RewriteName(EntityTableName)} SET {RewriteName(columnName)} = {RewriteValue(value, type)} ";
+            var updateSql = $"UPDATE {RewriteSqlEntityTableName(EntityTableName)} SET {RewriteName(columnName)} = {RewriteValue(value, type)} ";
             if (!string.IsNullOrEmpty(condition))
             {
                 updateSql += $"WHERE {condition}";

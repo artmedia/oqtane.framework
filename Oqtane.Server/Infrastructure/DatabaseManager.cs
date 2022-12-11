@@ -16,7 +16,6 @@ using Oqtane.Models;
 using Oqtane.Repository;
 using Oqtane.Shared;
 using Oqtane.Enums;
-using Newtonsoft.Json;
 using Microsoft.Extensions.Logging;
 
 // ReSharper disable MemberCanBePrivate.Global
@@ -51,7 +50,6 @@ namespace Oqtane.Infrastructure
 
             if (!string.IsNullOrEmpty(_config.GetConnectionString(SettingKeys.ConnectionStringKey)))
             {
-                result.Success = true;
                 using (var db = GetInstallationContext())
                 {
                     if (db.Database.CanConnect())
@@ -60,6 +58,7 @@ namespace Oqtane.Infrastructure
                         {
                             // verify master database contains a Tenant table ( ie. validate schema is properly provisioned )
                             var provisioned = db.Tenant.Any();
+                            result.Success = true;
                         }
                         catch (Exception ex)
                         {
@@ -190,6 +189,10 @@ namespace Oqtane.Infrastructure
                                 if (result.Success)
                                 {
                                     result = CreateSite(install);
+                                    if (result.Success)
+                                    {
+                                        result = MigrateSites();
+                                    }
                                 }
                             }
                         }
@@ -263,13 +266,13 @@ namespace Oqtane.Infrastructure
 
                     var databaseType = install.DatabaseType;
 
-                    //Get database Type
+                    // get database type
                     var type = Type.GetType(databaseType);
 
-                    //Create database object from Type
+                    // create database object from type
                     var database = Activator.CreateInstance(type) as IDatabase;
 
-                    //create data directory if does not exist
+                    // create data directory if does not exist
                     var dataDirectory = AppDomain.CurrentDomain.GetData("DataDirectory")?.ToString();
                     if (!Directory.Exists(dataDirectory)) Directory.CreateDirectory(dataDirectory ?? String.Empty);
 
@@ -283,7 +286,7 @@ namespace Oqtane.Infrastructure
                 }
                 catch (Exception ex)
                 {
-                    result.Message = ex.Message;
+                    result.Message = "An Error Occurred Creating The Database. This Is Usually Related To Your User Not Having Sufficient Rights To Perform This Operation. Please Note That You Can Also Create The Database Manually Prior To Initiating The Install Wizard. " + ex.Message;
                     _filelogger.LogError(Utilities.LogMessage(this, result.Message));
                 }
             }
@@ -317,14 +320,14 @@ namespace Oqtane.Infrastructure
                             {
                                 UpgradeSqlServer(sql, install.ConnectionString, install.DatabaseType, true);
                             }
-                            // Push latest model into database
+                            // push latest model into database
                             masterDbContext.Database.Migrate();
                             result.Success = true;
                         }
                     }
                     catch (Exception ex)
                     {
-                        result.Message = ex.Message;
+                        result.Message = "An Error Occurred Provisioning The Master Database. This Is Usually Related To The Master Database Not Being In A Supported State. " + ex.Message;
                         _filelogger.LogError(Utilities.LogMessage(this, result.Message));
                     }
                 }
@@ -425,14 +428,14 @@ namespace Oqtane.Infrastructure
                                     UpgradeSqlServer(sql, tenant.DBConnectionString, tenant.DBType, false);
                                 }
 
-                                // Push latest model into database
+                                // push latest model into database
                                 tenantDbContext.Database.Migrate();
                                 result.Success = true;
                             }
                         }
                         catch (Exception ex)
                         {
-                            result.Message = ex.Message;
+                            result.Message = "An Error Occurred Migrating A Tenant Database. This Is Usually Related To A Tenant Database Not Being In A Supported State. " + ex.Message;
                             _filelogger.LogError(Utilities.LogMessage(this, result.Message));
                         }
 
@@ -441,13 +444,21 @@ namespace Oqtane.Infrastructure
                         var index = Array.FindIndex(versions, item => item == version);
                         if (index != (versions.Length - 1))
                         {
-                            for (var i = (index + 1); i < versions.Length; i++)
+                            try
                             {
-                                upgrades.Upgrade(tenant, versions[i]);
+                                for (var i = (index + 1); i < versions.Length; i++)
+                                {
+                                    upgrades.Upgrade(tenant, versions[i]);
+                                }
+                                tenant.Version = versions[versions.Length - 1];
+                                db.Entry(tenant).State = EntityState.Modified;
+                                db.SaveChanges();
                             }
-                            tenant.Version = versions[versions.Length - 1];
-                            db.Entry(tenant).State = EntityState.Modified;
-                            db.SaveChanges();
+                            catch (Exception ex)
+                            {
+                                result.Message = "An Error Occurred Executing Upgrade Logic. " + ex.Message;
+                                _filelogger.LogError(Utilities.LogMessage(this, result.Message));
+                            }
                         }
                     }
                 }
@@ -473,63 +484,67 @@ namespace Oqtane.Infrastructure
 
                 foreach (var moduleDefinition in moduleDefinitions.GetModuleDefinitions())
                 {
-                    if (!string.IsNullOrEmpty(moduleDefinition.ReleaseVersions) && !string.IsNullOrEmpty(moduleDefinition.ServerManagerType))
+                    if (!string.IsNullOrEmpty(moduleDefinition.ReleaseVersions))
                     {
-                        var moduleType = Type.GetType(moduleDefinition.ServerManagerType);
-                        if (moduleType != null)
+                        var versions = moduleDefinition.ReleaseVersions.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                        using (var db = GetInstallationContext())
                         {
-                            var versions = moduleDefinition.ReleaseVersions.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                            using (var db = GetInstallationContext())
+                            if (!string.IsNullOrEmpty(moduleDefinition.ServerManagerType))
                             {
-                                foreach (var tenant in db.Tenant.ToList())
+                                var moduleType = Type.GetType(moduleDefinition.ServerManagerType);
+                                if (moduleType != null)
                                 {
-                                    var index = Array.FindIndex(versions, item => item == moduleDefinition.Version);
-                                    if (tenant.Name == install.TenantName && install.TenantName != TenantNames.Master)
+                                    foreach (var tenant in db.Tenant.ToList())
                                     {
-                                        index = -1;
-                                    }
-                                    if (index != (versions.Length - 1))
-                                    {
-                                        for (var i = (index + 1); i < versions.Length; i++)
+                                        var index = Array.FindIndex(versions, item => item == moduleDefinition.Version);
+                                        if (tenant.Name == install.TenantName && install.TenantName != TenantNames.Master)
                                         {
-                                            try
+                                            index = -1;
+                                        }
+                                        if (index != (versions.Length - 1))
+                                        {
+                                            for (var i = (index + 1); i < versions.Length; i++)
                                             {
-                                                if (moduleType.GetInterface("IInstallable") != null)
+                                                try
                                                 {
-                                                    tenantManager.SetTenant(tenant.TenantId);
-                                                    var moduleObject = ActivatorUtilities.CreateInstance(scope.ServiceProvider, moduleType) as IInstallable;
-                                                    if (moduleObject == null || !moduleObject.Install(tenant, versions[i]))
+                                                    if (moduleType.GetInterface("IInstallable") != null)
                                                     {
-                                                        result.Message = "An Error Occurred Executing IInstallable Interface For " + moduleDefinition.ServerManagerType;
+                                                        tenantManager.SetTenant(tenant.TenantId);
+                                                        var moduleObject = ActivatorUtilities.CreateInstance(scope.ServiceProvider, moduleType) as IInstallable;
+                                                        if (moduleObject == null || !moduleObject.Install(tenant, versions[i]))
+                                                        {
+                                                            result.Message = "An Error Occurred Executing IInstallable Interface For " + moduleDefinition.ServerManagerType;
+                                                        }
+                                                    }
+                                                    else
+                                                    {
+                                                        if (!sql.ExecuteScript(tenant, moduleType.Assembly, Utilities.GetTypeName(moduleDefinition.ModuleDefinitionName) + "." + versions[i] + ".sql"))
+                                                        {
+                                                            result.Message = "An Error Occurred Executing Database Script " + Utilities.GetTypeName(moduleDefinition.ModuleDefinitionName) + "." + versions[i] + ".sql";
+                                                        }
                                                     }
                                                 }
-                                                else
+                                                catch (Exception ex)
                                                 {
-                                                    if (!sql.ExecuteScript(tenant, moduleType.Assembly, Utilities.GetTypeName(moduleDefinition.ModuleDefinitionName) + "." + versions[i] + ".sql"))
-                                                    {
-                                                        result.Message = "An Error Occurred Executing Database Script " + Utilities.GetTypeName(moduleDefinition.ModuleDefinitionName) + "." + versions[i] + ".sql";
-                                                    }
+                                                    result.Message = "An Error Occurred Installing " + moduleDefinition.Name + " Version " + versions[i] + " - " + ex.Message;
                                                 }
-                                            }
-                                            catch (Exception ex)
-                                            {
-                                                result.Message = "An Error Occurred Installing " + moduleDefinition.Name + " Version " + versions[i] + " - " + ex.Message;
                                             }
                                         }
                                     }
                                 }
-                                if (string.IsNullOrEmpty(result.Message) && moduleDefinition.Version != versions[versions.Length - 1])
-                                {
-                                    // get module definition from database to retain user customizable property values
-                                    var moduledef = db.ModuleDefinition.AsNoTracking().FirstOrDefault(item => item.ModuleDefinitionId == moduleDefinition.ModuleDefinitionId);
-                                    moduleDefinition.Name = moduledef.Name;
-                                    moduleDefinition.Description = moduledef.Description;
-                                    moduleDefinition.Categories = moduledef.Categories;
-                                    // update version
-                                    moduleDefinition.Version = versions[versions.Length - 1];
-                                    db.Entry(moduleDefinition).State = EntityState.Modified;
-                                    db.SaveChanges();
-                                }
+                            }
+
+                            if (string.IsNullOrEmpty(result.Message) && moduleDefinition.Version != versions[versions.Length - 1])
+                            {
+                                // get module definition from database to retain user customizable property values
+                                var moduledef = db.ModuleDefinition.AsNoTracking().FirstOrDefault(item => item.ModuleDefinitionId == moduleDefinition.ModuleDefinitionId);
+                                moduleDefinition.Name = moduledef.Name;
+                                moduleDefinition.Description = moduledef.Description;
+                                moduleDefinition.Categories = moduledef.Categories;
+                                // update version
+                                moduleDefinition.Version = versions[versions.Length - 1];
+                                db.Entry(moduleDefinition).State = EntityState.Modified;
+                                db.SaveChanges();
                             }
                         }
                     }
@@ -620,35 +635,12 @@ namespace Oqtane.Infrastructure
                                             LastIPAddress = "",
                                             LastLoginOn = null
                                         };
-
                                         user = users.AddUser(user);
+
+                                        // add host role
                                         var hostRoleId = roles.GetRoles(user.SiteId, true).FirstOrDefault(item => item.Name == RoleNames.Host)?.RoleId ?? 0;
                                         var userRole = new UserRole { UserId = user.UserId, RoleId = hostRoleId, EffectiveDate = null, ExpiryDate = null };
                                         userRoles.AddUserRole(userRole);
-
-                                        // add user folder
-                                        var folder = folders.GetFolder(user.SiteId, Utilities.PathCombine("Users", Path.DirectorySeparatorChar.ToString()));
-                                        if (folder != null)
-                                        {
-                                            folders.AddFolder(new Folder
-                                            {
-                                                SiteId = folder.SiteId,
-                                                ParentId = folder.FolderId,
-                                                Name = "My Folder",
-                                                Type = FolderTypes.Private,
-                                                Path = Utilities.PathCombine(folder.Path, user.UserId.ToString(), Path.DirectorySeparatorChar.ToString()),
-                                                Order = 1,
-                                                ImageSizes = "",
-                                                Capacity = Constants.UserFolderCapacity,
-                                                IsSystem = true,
-                                                Permissions = new List<Permission>
-                                                {
-                                                    new Permission(PermissionNames.Browse, user.UserId, true),
-                                                    new Permission(PermissionNames.View, RoleNames.Everyone, true),
-                                                    new Permission(PermissionNames.Edit, user.UserId, true),
-                                                }.EncodePermissions(),
-                                            });
-                                        }
                                     }
                                 }
                             }
@@ -672,7 +664,7 @@ namespace Oqtane.Infrastructure
                 }
                 catch (Exception ex)
                 {
-                    result.Message = "An Error Occurred Creating Site - " + ex.Message;
+                    result.Message = "An Error Occurred Creating Site. " + ex.Message;
                 }
             }
 
@@ -685,6 +677,77 @@ namespace Oqtane.Infrastructure
                 _filelogger.LogError(Utilities.LogMessage(this, result.Message));
             }
 
+            return result;
+        }
+
+        private Installation MigrateSites()
+        {
+            var result = new Installation { Success = false, Message = string.Empty };
+
+            // get site upgrades
+            Dictionary<string, Type> siteupgrades = new Dictionary<string, Type>();
+            var assemblies = AppDomain.CurrentDomain.GetOqtaneAssemblies();
+            foreach (Assembly assembly in assemblies)
+            {
+                foreach (var type in assembly.GetTypes(typeof(ISiteMigration)))
+                {
+                    if (Attribute.IsDefined(type, typeof(SiteMigrationAttribute)))
+                    {
+                        var attribute = (SiteMigrationAttribute)Attribute.GetCustomAttribute(type, typeof(SiteMigrationAttribute));
+                        siteupgrades.Add(attribute.AliasName + " " + attribute.Version, type);
+                    }
+                }
+            }
+
+            // execute site upgrades
+            if (siteupgrades.Count > 0)
+            {
+                using (var scope = _serviceScopeFactory.CreateScope())
+                {
+                    var aliases = scope.ServiceProvider.GetRequiredService<IAliasRepository>();
+                    var tenantManager = scope.ServiceProvider.GetRequiredService<ITenantManager>();
+                    var sites = scope.ServiceProvider.GetRequiredService<ISiteRepository>();
+                    var logger = scope.ServiceProvider.GetRequiredService<ILogManager>();
+
+                    foreach (var alias in aliases.GetAliases().ToList().Where(item => item.IsDefault))
+                    {
+                        foreach (var upgrade in siteupgrades)
+                        {
+                            var aliasname = upgrade.Key.Split(' ').First();
+                            // in the future this equality condition could use RegEx to allow for more flexible matching
+                            if (string.Equals(alias.Name, aliasname, StringComparison.OrdinalIgnoreCase))
+                            {
+                                tenantManager.SetTenant(alias.TenantId);
+                                var site = sites.GetSites().FirstOrDefault(item => item.SiteId == alias.SiteId);
+                                if (site != null)
+                                {
+                                    var version = upgrade.Key.Split(' ').Last();
+                                    if (string.IsNullOrEmpty(site.Version) || Version.Parse(version) > Version.Parse(site.Version))
+                                    {
+                                        try
+                                        {
+                                            var obj = ActivatorUtilities.CreateInstance(scope.ServiceProvider, upgrade.Value) as ISiteMigration;
+                                            if (obj != null)
+                                            {
+                                                obj.Up(site, alias);
+                                                site.Version = version;
+                                                sites.UpdateSite(site);
+                                                logger.Log(alias.SiteId, Shared.LogLevel.Information, "Site Migration", LogFunction.Other, "Site Migrated Successfully To Version {version} For {Alias}", version, alias.Name);
+                                            }
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            logger.Log(alias.SiteId, Shared.LogLevel.Error, "Site Migration", LogFunction.Other, "An Error Occurred Executing Site Migration {Type} For {Alias} And Version {Version} {Error}", upgrade.Value, alias.Name, version, ex.Message);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            result.Success = true;
             return result;
         }
 
@@ -761,7 +824,7 @@ namespace Oqtane.Infrastructure
                 databases += "{ \"Name\": \"MySQL\", \"ControlType\": \"Oqtane.Installer.Controls.MySQLConfig, Oqtane.Client\", \"DBTYpe\": \"Oqtane.Database.MySQL.SqlServerDatabase, Oqtane.Database.MySQL\" },";
                 databases += "{ \"Name\": \"PostgreSQL\", \"ControlType\": \"Oqtane.Installer.Controls.PostgreSQLConfig, Oqtane.Client\", \"DBTYpe\": \"Oqtane.Database.PostgreSQL.PostgreSQLDatabase, Oqtane.Database.PostgreSQL\" }";
                 databases += "]";
-                _configManager.AddOrUpdateSetting(SettingKeys.AvailableDatabasesSection, JsonConvert.DeserializeObject<dynamic>(databases), true);
+                _configManager.AddOrUpdateSetting(SettingKeys.AvailableDatabasesSection, databases, true);
             }
         }
     }

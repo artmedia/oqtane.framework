@@ -53,14 +53,8 @@ Oqtane.Interop = {
             }
         }
     },
-    includeLink: function (id, rel, href, type, integrity, crossorigin, key) {
-        var link;
-        if (id !== "" && key === "id") {
-            link = document.getElementById(id);
-        }
-        else {
-            link = document.querySelector("link[href=\"" + CSS.escape(href) + "\"]");
-        }
+    includeLink: function (id, rel, href, type, integrity, crossorigin, insertbefore) {
+        var link = document.querySelector("link[href=\"" + CSS.escape(href) + "\"]");
         if (link === null) {
             link = document.createElement("link");
             if (id !== "") {
@@ -77,7 +71,13 @@ Oqtane.Interop = {
             if (crossorigin !== "") {
                 link.crossOrigin = crossorigin;
             }
-            document.head.appendChild(link);
+            if (insertbefore === "") {
+                document.head.appendChild(link);
+            }
+            else {
+                var sibling = document.getElementById(insertbefore);
+                sibling.parentNode.insertBefore(link, sibling);
+            }
         }
         else {
             if (link.id !== id) {
@@ -116,17 +116,11 @@ Oqtane.Interop = {
     },
     includeLinks: function (links) {
         for (let i = 0; i < links.length; i++) {
-            this.includeLink(links[i].id, links[i].rel, links[i].href, links[i].type, links[i].integrity, links[i].crossorigin, links[i].key);
+            this.includeLink(links[i].id, links[i].rel, links[i].href, links[i].type, links[i].integrity, links[i].crossorigin, links[i].insertbefore);
         }
     },
-    includeScript: function (id, src, integrity, crossorigin, content, location, key) {
-        var script;
-        if (id !== "" && key === "id") {
-            script = document.getElementById(id);
-        }
-        else {
-            script = document.querySelector("script[src=\"" + CSS.escape(src) + "\"]");
-        }
+    includeScript: function (id, src, integrity, crossorigin, content, location) {
+        var script = document.querySelector("script[src=\"" + CSS.escape(src) + "\"]");
         if (script === null) {
             script = document.createElement("script");
             if (id !== "") {
@@ -232,6 +226,9 @@ Oqtane.Interop = {
                                 if (path === scripts[s].href && scripts[s].crossorigin !== '') {
                                     element.crossOrigin = scripts[s].crossorigin;
                                 }
+                                if (path === scripts[s].href && scripts[s].es6module === true) {
+                                    element.type = "module";
+                                }
                             }
                         }
                     })
@@ -297,7 +294,7 @@ Oqtane.Interop = {
         }
         return files;
     },
-    uploadFiles: function (posturl, folder, id) {
+    uploadFiles: function (posturl, folder, id, antiforgerytoken) {
         var fileinput = document.getElementById(id + 'FileInput');
         var files = fileinput.files;
         var progressinfo = document.getElementById(id + 'ProgressInfo');
@@ -329,6 +326,7 @@ Oqtane.Interop = {
                 var FileName = file.name + ".part_" + PartCount.toString().padStart(3, '0') + "_" + TotalParts.toString().padStart(3, '0');
 
                 var data = new FormData();
+                data.append('__RequestVerificationToken', antiforgerytoken);
                 data.append('folder', folder);
                 data.append('formfile', Chunk, FileName);
                 var request = new XMLHttpRequest();
@@ -346,15 +344,27 @@ Oqtane.Interop = {
                     progressinfo.innerHTML = file.name + ' 100%';
                     progressbar.value = 1;
                 };
+                request.upload.onerror = function () {
+                    progressinfo.innerHTML = file.name + ' Error: ' + xhr.status;
+                    progressbar.value = 0;
+                };
                 request.send(data);
             }
+
+            if (i === files.length - 1) {
+                fileinput.value = '';
+            }
         }
-        fileinput.value = '';
     },
-    refreshBrowser: function (reload, wait) {
-        setInterval(function () {
-            window.location.reload(reload);
-        }, wait * 1000);
+    refreshBrowser: function (verify, wait) {
+        async function attemptReload (verify) {
+            if (verify) {
+                await fetch('');
+            }
+            window.location.reload();
+        }
+        attemptReload(verify);
+        setInterval(attemptReload, wait * 1000);
     },
     redirectBrowser: function (url, wait) {
         setInterval(function () {
@@ -384,6 +394,55 @@ Oqtane.Interop = {
                 behavior: "smooth",
                 block: "start",
                 inline: "nearest"
-        });
+            });
+        }
+    },
+    getCaretPosition: function (id) {
+        var element = document.getElementById(id);
+        return element.selectionStart;
+    },
+    manageIndexedDBItems: async function (action, key, value) {
+        var idb = indexedDB.open("oqtane", 1);
+
+        idb.onupgradeneeded = function () {
+            let db = idb.result;
+            db.createObjectStore("items");
+        }
+
+        if (action.startsWith("get")) {
+            let request = new Promise((resolve) => {
+                idb.onsuccess = function () {
+                    let transaction = idb.result.transaction("items", "readonly");
+                    let collection = transaction.objectStore("items");
+                    let result;
+                    if (action === "get") {
+                        result = collection.get(key);
+                    }
+                    if (action === "getallkeys") {
+                        result = collection.getAllKeys();
+                    }
+
+                    result.onsuccess = function (e) {
+                        resolve(result.result);
+                    }
+                }
+            });
+
+            let result = await request;
+
+            return result;
+        }
+        else {
+            idb.onsuccess = function () {
+                let transaction = idb.result.transaction("items", "readwrite");
+                let collection = transaction.objectStore("items");
+                if (action === "put") {
+                    collection.put(value, key);
+                }
+                if (action === "delete") {
+                    collection.delete(key);
+                }
+            }
+        }
     }
-}};
+};

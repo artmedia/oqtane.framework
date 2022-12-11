@@ -18,6 +18,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using System.Collections.Generic;
 
 namespace Oqtane.Controllers
 {
@@ -49,7 +50,7 @@ namespace Oqtane.Controllers
         [HttpPost]
         public async Task<Installation> Post([FromBody] InstallConfig config)
         {
-            var installation = new Installation {Success = false, Message = ""};
+            var installation = new Installation { Success = false, Message = "" };
 
             if (ModelState.IsValid && (User.IsInRole(RoleNames.Host) || string.IsNullOrEmpty(_configManager.GetSetting("ConnectionStrings:" + SettingKeys.ConnectionStringKey, ""))))
             {
@@ -85,7 +86,7 @@ namespace Oqtane.Controllers
         [Authorize(Roles = RoleNames.Host)]
         public Installation Upgrade()
         {
-            var installation = new Installation {Success = true, Message = ""};
+            var installation = new Installation { Success = true, Message = "" };
             _installationManager.UpgradeFramework();
             return installation;
         }
@@ -98,24 +99,39 @@ namespace Oqtane.Controllers
             _installationManager.RestartApplication();
         }
 
-        // GET api/<controller>/load
-        [HttpGet("load")]
-        public IActionResult Load()
+        // GET api/<controller>/list
+        [HttpGet("list")]
+        public List<string> List()
         {
-            return File(GetAssemblies(), System.Net.Mime.MediaTypeNames.Application.Octet, "oqtane.dll");
+            return GetAssemblyList().Select(item => item.HashedName).ToList();
         }
 
-        private byte[] GetAssemblies()
-        {            
-            return _cache.GetOrCreate("assemblies", entry =>
+        // GET api/<controller>/load?list=x,y
+        [HttpGet("load")]
+        public IActionResult Load(string list = "*")
+        {
+            return File(GetAssemblies(list), System.Net.Mime.MediaTypeNames.Application.Octet, "oqtane.dll");
+        }
+
+        private List<ClientAssembly> GetAssemblyList()
+        {
+            return _cache.GetOrCreate("assemblieslist", entry =>
             {
+                var binFolder = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+                var assemblyList = new List<ClientAssembly>();
+
                 // get list of assemblies which should be downloaded to client
                 var assemblies = AppDomain.CurrentDomain.GetOqtaneClientAssemblies();
-                var list = assemblies.Select(a => a.GetName().Name).ToList();
-                var binFolder = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+                var list = assemblies.Select(a => a.GetName().Name).ToList();            
+
+                // populate assemblies
+                for (int i = 0; i < list.Count; i++)
+                {
+                    assemblyList.Add(new ClientAssembly(Path.Combine(binFolder, list[i] + ".dll")));
+                }
 
                 // insert satellite assemblies at beginning of list
-                foreach (var culture in _localizationManager.GetSupportedCultures())
+                foreach (var culture in _localizationManager.GetInstalledCultures())
                 {
                     var assembliesFolderPath = Path.Combine(binFolder, culture);
                     if (culture == Constants.DefaultCulture)
@@ -127,7 +143,7 @@ namespace Oqtane.Controllers
                     {
                         foreach (var resourceFile in Directory.EnumerateFiles(assembliesFolderPath))
                         {
-                            list.Insert(0, Path.Combine(culture, Path.GetFileNameWithoutExtension(resourceFile)));
+                            assemblyList.Insert(0, new ClientAssembly(resourceFile));
                         }
                     }
                     else
@@ -142,11 +158,15 @@ namespace Oqtane.Controllers
                     foreach (var type in assembly.GetTypes().Where(item => item.GetInterfaces().Contains(typeof(IModule))))
                     {
                         var instance = Activator.CreateInstance(type) as IModule;
-                        foreach (string name in instance.ModuleDefinition.Dependencies.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                        foreach (string name in instance.ModuleDefinition.Dependencies.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Reverse())
                         {
-                            if (System.IO.File.Exists(Path.Combine(binFolder, name + ".dll")))
+                            var filepath = Path.Combine(binFolder, name + ".dll");
+                            if (System.IO.File.Exists(filepath))
                             {
-                                if (!list.Contains(name)) list.Insert(0, name);
+                                if (!assemblyList.Exists(item => item.FilePath == filepath))
+                                {
+                                    assemblyList.Insert(0, new ClientAssembly(filepath));
+                                }
                             }
                             else
                             {
@@ -157,11 +177,15 @@ namespace Oqtane.Controllers
                     foreach (var type in assembly.GetTypes().Where(item => item.GetInterfaces().Contains(typeof(ITheme))))
                     {
                         var instance = Activator.CreateInstance(type) as ITheme;
-                        foreach (string name in instance.Theme.Dependencies.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+                        foreach (string name in instance.Theme.Dependencies.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Reverse())
                         {
-                            if (System.IO.File.Exists(Path.Combine(binFolder, name + ".dll")))
+                            var filepath = Path.Combine(binFolder, name + ".dll");
+                            if (System.IO.File.Exists(filepath))
                             {
-                                if (!list.Contains(name)) list.Insert(0, name);
+                                if (!assemblyList.Exists(item => item.FilePath == filepath))
+                                {
+                                    assemblyList.Insert(0, new ClientAssembly(filepath));
+                                }
                             }
                             else
                             {
@@ -171,34 +195,66 @@ namespace Oqtane.Controllers
                     }
                 }
 
-                // create zip file containing assemblies and debug symbols
-                using (var memoryStream = new MemoryStream())
+                return assemblyList;
+            });
+        }
+
+        private byte[] GetAssemblies(string list)
+        {
+            if (list == "*")
+            {
+                return _cache.GetOrCreate("assemblies", entry =>
                 {
-                    using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+                    return GetZIP(list);
+                });
+            }
+            else
+            {
+                return GetZIP(list);
+            }
+        }
+
+        private byte[] GetZIP(string list)
+        {
+            var binFolder = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+
+            // get list of assemblies which should be downloaded to client
+            List<ClientAssembly> assemblies = GetAssemblyList();
+            if (list != "*")
+            {
+                var filter = list.Split(',').ToList();
+                assemblies.RemoveAll(item => !filter.Contains(item.HashedName));
+            }
+
+            // create zip file containing assemblies and debug symbols
+            using (var memoryStream = new MemoryStream())
+            {
+                using (var archive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
+                {
+                    foreach (var assembly in assemblies)
                     {
-                        foreach (string file in list)
+                        if (System.IO.File.Exists(assembly.FilePath))
                         {
-                            using (var filestream = new FileStream(Path.Combine(binFolder, file + ".dll"), FileMode.Open, FileAccess.Read))
-                            using (var entrystream = archive.CreateEntry(file + ".dll").Open())
+                            using (var filestream = new FileStream(assembly.FilePath, FileMode.Open, FileAccess.Read))
+                            using (var entrystream = archive.CreateEntry(assembly.HashedName).Open())
                             {
                                 filestream.CopyTo(entrystream);
                             }
-
-                            // include debug symbols
-                            if (System.IO.File.Exists(Path.Combine(binFolder, file + ".pdb")))
+                        }
+                        var pdb = assembly.FilePath.Replace(".dll", ".pdb");
+                        if (System.IO.File.Exists(pdb))
+                        {
+                            using (var filestream = new FileStream(pdb, FileMode.Open, FileAccess.Read))
+                            using (var entrystream = archive.CreateEntry(assembly.HashedName.Replace(".dll", ".pdb")).Open())
                             {
-                                using (var filestream = new FileStream(Path.Combine(binFolder, file + ".pdb"), FileMode.Open, FileAccess.Read))
-                                using (var entrystream = archive.CreateEntry(file + ".pdb").Open())
-                                {
-                                    filestream.CopyTo(entrystream);
-                                }
+                                filestream.CopyTo(entrystream);
                             }
                         }
                     }
-
-                    return memoryStream.ToArray();
                 }
-            });
+
+                return memoryStream.ToArray();
+            }
         }
 
         private async Task RegisterContact(string email)
@@ -226,5 +282,38 @@ namespace Oqtane.Controllers
         {
             await RegisterContact(email);
         }
+
+        public struct ClientAssembly
+        {
+            public ClientAssembly(string filepath)
+            {
+                FilePath = filepath;
+                DateTime lastwritetime = System.IO.File.GetLastWriteTime(filepath);
+                HashedName = GetDeterministicHashCode(filepath).ToString("X8") + "." + lastwritetime.ToString("yyyyMMddHHmmss") + Path.GetExtension(filepath);
+            }
+
+            public string FilePath { get; private set; }
+            public string HashedName { get; private set; }
+        }
+
+        private static int GetDeterministicHashCode(string value)
+        {
+            unchecked
+            {
+                int hash1 = (5381 << 16) + 5381;
+                int hash2 = hash1;
+
+                for (int i = 0; i < value.Length; i += 2)
+                {
+                    hash1 = ((hash1 << 5) + hash1) ^ value[i];
+                    if (i == value.Length - 1)
+                        break;
+                    hash2 = ((hash2 << 5) + hash2) ^ value[i + 1];
+                }
+
+                return hash1 + (hash2 * 1566083941);
+            }
+        }
+
     }
 }

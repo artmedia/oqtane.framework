@@ -7,24 +7,15 @@ using Oqtane.Shared;
 
 namespace Oqtane.Pages
 {
-    [AllowAnonymous]
+    [Authorize]
     public class LogoutModel : PageModel
     {
         public async Task<IActionResult> OnPostAsync(string returnurl)
         {
-            if (HttpContext.User.Identity.IsAuthenticated)
-            {
-                await HttpContext.SignOutAsync(Constants.AuthenticationScheme);
-            }
+            await HttpContext.SignOutAsync(Constants.AuthenticationScheme);
 
-            if (returnurl == null)
-            {
-                returnurl = "";
-            }
-            if (!returnurl.StartsWith("/"))
-            {
-                returnurl = "/" + returnurl;
-            }
+            returnurl = (returnurl == null) ? "/" : returnurl;
+            returnurl = (!returnurl.StartsWith("/")) ? "/" + returnurl : returnurl;
 
             return LocalRedirect(Url.Content("~" + returnurl));
         }

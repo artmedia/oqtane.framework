@@ -1,19 +1,25 @@
 using System;
 using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
+using System.Reflection.Metadata;
 using System.Runtime.Loader;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authentication.OAuth;
+using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using Oqtane.Infrastructure;
+using Oqtane.Models;
 using Oqtane.Modules;
 using Oqtane.Repository;
 using Oqtane.Security;
@@ -24,10 +30,10 @@ namespace Microsoft.Extensions.DependencyInjection
 {
     public static class OqtaneServiceCollectionExtensions
     {
-        public static IServiceCollection AddOqtane(this IServiceCollection services, string[] supportedCultures)
+        public static IServiceCollection AddOqtane(this IServiceCollection services, string[] installedCultures)
         {
             LoadAssemblies();
-            LoadSatelliteAssemblies(supportedCultures);
+            LoadSatelliteAssemblies(installedCultures);
             services.AddOqtaneServices();
 
             return services;
@@ -57,6 +63,11 @@ namespace Microsoft.Extensions.DependencyInjection
             return services;
         }
 
+        public static OqtaneSiteOptionsBuilder AddOqtaneSiteOptions(this IServiceCollection services)
+        {
+            return new OqtaneSiteOptionsBuilder(services);
+        }
+
         internal static IServiceCollection AddOqtaneSingletonServices(this IServiceCollection services)
         {
             services.AddSingleton<IInstallationManager, InstallationManager>();
@@ -64,16 +75,26 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton<IDatabaseManager, DatabaseManager>();
             services.AddSingleton<IConfigManager, ConfigManager>();
             services.AddSingleton<ILoggerProvider, FileLoggerProvider>();
+            services.AddSingleton<AutoValidateAntiforgeryTokenFilter>();
+            return services;
+        }
+
+        internal static IServiceCollection AddOqtaneServerScopedServices(this IServiceCollection services)
+        {
+            services.AddScoped<Oqtane.Infrastructure.SiteState>();
             return services;
         }
 
         internal static IServiceCollection AddOqtaneTransientServices(this IServiceCollection services)
         {
             services.AddTransient<ITenantManager, TenantManager>();
-            services.AddTransient<IModuleDefinitionRepository, ModuleDefinitionRepository>();
-            services.AddTransient<IThemeRepository, ThemeRepository>();
+            services.AddTransient<IAliasAccessor, AliasAccessor>();
             services.AddTransient<IUserPermissions, UserPermissions>();
             services.AddTransient<ITenantResolver, TenantResolver>();
+            services.AddTransient<IJwtManager, JwtManager>();
+
+            services.AddTransient<IModuleDefinitionRepository, ModuleDefinitionRepository>();
+            services.AddTransient<IThemeRepository, ThemeRepository>();
             services.AddTransient<IAliasRepository, AliasRepository>();
             services.AddTransient<ITenantRepository, TenantRepository>();
             services.AddTransient<ISiteRepository, SiteRepository>();
@@ -100,6 +121,7 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddTransient<ILanguageRepository, LanguageRepository>();
             services.AddTransient<IVisitorRepository, VisitorRepository>();
             services.AddTransient<IUrlMappingRepository, UrlMappingRepository>();
+
             // obsolete - replaced by ITenantManager
             services.AddTransient<ITenantResolver, TenantResolver>();
 
@@ -123,36 +145,63 @@ namespace Microsoft.Extensions.DependencyInjection
                     context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
                     return Task.CompletedTask;
                 };
+                options.Events.OnRedirectToLogout = context =>
+                {
+                    context.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                    return Task.CompletedTask;
+                };
                 options.Events.OnValidatePrincipal = PrincipalValidator.ValidateAsync;
             });
 
             return services;
         }
 
-        public static IServiceCollection ConfigureOqtaneIdentityOptions(this IServiceCollection services)
+        public static IServiceCollection ConfigureOqtaneAuthenticationOptions(this IServiceCollection services, IConfigurationRoot Configuration)
         {
-            services.Configure<IdentityOptions>(options =>
-            {
-                // Password settings
-                options.Password.RequireDigit = false;
-                options.Password.RequiredLength = 6;
-                options.Password.RequireNonAlphanumeric = false;
-                options.Password.RequireUppercase = false;
-                options.Password.RequireLowercase = false;
+            // prevent remapping of claims
+            JwtSecurityTokenHandler.DefaultMapInboundClaims = false;
 
-                // Lockout settings
-                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(30);
-                options.Lockout.MaxFailedAccessAttempts = 10;
-                options.Lockout.AllowedForNewUsers = true;
-
-                // User settings
-                options.User.RequireUniqueEmail = false;
-            });
+            // settings defined in appsettings
+            services.Configure<OAuthOptions>(Configuration);
+            services.Configure<OpenIdConnectOptions>(Configuration);
 
             return services;
         }
 
-        internal static IServiceCollection TryAddHttpClientWithAuthenticationCookie(this IServiceCollection services)
+        public static IServiceCollection ConfigureOqtaneIdentityOptions(this IServiceCollection services, IConfigurationRoot Configuration)
+        {
+            // default settings
+            services.Configure<IdentityOptions>(options =>
+            {
+                // Password settings
+                options.Password.RequireDigit = true;
+                options.Password.RequiredLength = 6;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequiredUniqueChars = 1;
+
+                // Lockout settings
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.AllowedForNewUsers = false;
+
+                // SignIn settings
+                options.SignIn.RequireConfirmedEmail = true;
+                options.SignIn.RequireConfirmedPhoneNumber = false;
+
+                // User settings
+                options.User.RequireUniqueEmail = false; // changing to true will cause issues for legacy data
+                options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
+            });
+
+            // overrides defined in appsettings
+            services.Configure<IdentityOptions>(Configuration);
+
+            return services;
+        }
+
+        internal static IServiceCollection AddHttpClients(this IServiceCollection services)
         {
             if (!services.Any(x => x.ServiceType == typeof(HttpClient)))
             {
@@ -173,6 +222,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     return client;
                 });
             }
+
+            // IHttpClientFactory for calling remote services via RemoteServiceBase
+            services.AddHttpClient();
 
             return services;
         }
@@ -202,7 +254,7 @@ namespace Microsoft.Extensions.DependencyInjection
             var assemblies = AppDomain.CurrentDomain.GetOqtaneAssemblies();
             foreach (var assembly in assemblies)
             {
-                // dynamically register module services, contexts, and repository classes
+                // dynamically register module scoped services (ie. client service classes)
                 var implementationTypes = assembly.GetInterfaces<IService>();
                 foreach (var implementationType in implementationTypes)
                 {
@@ -213,11 +265,22 @@ namespace Microsoft.Extensions.DependencyInjection
                     }
                 }
 
+                // dynamically register module transient services (ie. server DBContext, repository classes)
+                implementationTypes = assembly.GetInterfaces<ITransientService>();
+                foreach (var implementationType in implementationTypes)
+                {
+                    if (implementationType.AssemblyQualifiedName != null)
+                    {
+                        var serviceType = Type.GetType(implementationType.AssemblyQualifiedName.Replace(implementationType.Name, $"I{implementationType.Name}"));
+                        services.AddTransient(serviceType ?? implementationType, implementationType);
+                    }
+                }
+
                 // dynamically register hosted services
                 var serviceTypes = assembly.GetTypes(hostedServiceType);
                 foreach (var serviceType in serviceTypes)
                 {
-                    if (serviceType.IsSubclassOf(typeof(HostedServiceBase)))
+                    if (!services.Any(item => item.ServiceType == serviceType))
                     {
                         services.AddSingleton(hostedServiceType, serviceType);
                     }
@@ -267,54 +330,28 @@ namespace Microsoft.Extensions.DependencyInjection
             }
         }
 
-        private static void LoadSatelliteAssemblies(string[] supportedCultures)
+        private static void LoadSatelliteAssemblies(string[] installedCultures)
         {
-            var assemblies = AppDomain.CurrentDomain.GetAssemblies();
-            var assemblyPath = Path.GetDirectoryName(Assembly.GetEntryAssembly()?.Location);
-            if (assemblyPath == null)
-            {
-                return;
-            }
-
             AssemblyLoadContext.Default.Resolving += ResolveDependencies;
 
-            foreach (var culture in supportedCultures)
+            foreach (var file in Directory.EnumerateFiles(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), $"*{Constants.SatelliteAssemblyExtension}", SearchOption.AllDirectories))
             {
-                if (culture == Constants.DefaultCulture)
+                var code = Path.GetFileName(Path.GetDirectoryName(file));
+                if (installedCultures.Contains(code))
                 {
-                    continue;
-                }
-
-                var assembliesFolder = new DirectoryInfo(Path.Combine(assemblyPath, culture));
-                if (assembliesFolder.Exists)
-                {
-                    foreach (var assemblyFile in assembliesFolder.EnumerateFiles($"*{Constants.SatelliteAssemblyExtension}"))
+                    try
                     {
-                        AssemblyName assemblyName;
-                        try
-                        {
-                            assemblyName = AssemblyName.GetAssemblyName(assemblyFile.FullName);
-                        }
-                        catch
-                        {
-                            Debug.WriteLine($"Oqtane Error: Cannot Get Satellite Assembly Name For {assemblyFile.Name}");
-                            continue;
-                        }
-
-                        try
-                        {
-                            Assembly assembly = AssemblyLoadContext.Default.LoadFromStream(new MemoryStream(File.ReadAllBytes(assemblyFile.FullName)));
-                            Debug.WriteLine($"Oqtane Info: Loaded Assembly {assemblyName}");
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"Oqtane Error: Unable To Load Assembly {assemblyName} - {ex}");
-                        }
+                        Assembly assembly = AssemblyLoadContext.Default.LoadFromStream(new MemoryStream(System.IO.File.ReadAllBytes(file)));
+                        Debug.WriteLine($"Oqtane Info: Loaded Satellite Assembly {file}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Oqtane Error: Unable To Load Satellite Assembly {file} - {ex}");
                     }
                 }
                 else
                 {
-                    Debug.WriteLine($"Oqtane Error: The Satellite Assembly Folder For {culture} Does Not Exist");
+                    Debug.WriteLine($"Oqtane Error: Culture Not Supported For Satellite Assembly {file}");
                 }
             }
         }
@@ -322,9 +359,9 @@ namespace Microsoft.Extensions.DependencyInjection
         private static Assembly ResolveDependencies(AssemblyLoadContext context, AssemblyName name)
         {
             var assemblyPath = Path.GetDirectoryName(Assembly.GetEntryAssembly()?.Location) + Path.DirectorySeparatorChar + name.Name + ".dll";
-            if (File.Exists(assemblyPath))
+            if (System.IO.File.Exists(assemblyPath))
             {
-                return context.LoadFromStream(new MemoryStream(File.ReadAllBytes(assemblyPath)));
+                return context.LoadFromStream(new MemoryStream(System.IO.File.ReadAllBytes(assemblyPath)));
             }
             else
             {

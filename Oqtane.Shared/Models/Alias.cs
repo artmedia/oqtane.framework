@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Oqtane.Models
@@ -68,5 +69,28 @@ namespace Oqtane.Models
             }
         }
 
+        /// <summary>
+        /// Unique key used for identifying a site within a runtime process (ie. cache, etc...)
+        /// </summary>
+        [NotMapped]
+        public string SiteKey
+        {
+            get
+            {
+                return TenantId.ToString() + ":" + SiteId.ToString();
+            }
+        }
+
+        /// <summary>
+        /// Protocol for the request from which the alias was resolved (ie. http or https )
+        /// </summary>
+        [NotMapped]
+        public string Protocol { get; set; }
+
+        /// <summary>
+        /// Base Url for static resources (note that this will only be set for remote clients)
+        /// </summary>
+        [NotMapped]
+        public string BaseUrl { get; set; }
     }
 }

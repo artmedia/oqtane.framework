@@ -45,7 +45,7 @@ namespace Oqtane.Security
             {
                 if (user == null)
                 {
-                    authorized =  IsAuthorized(-1, "", permissions); // user is not authenticated but may have access to resource
+                    authorized = IsAuthorized(-1, "", permissions); // user is not authenticated but may have access to resource
                 }
                 else
                 {
@@ -104,16 +104,29 @@ namespace Oqtane.Security
 
         private static bool IsAllowed(int userId, string roles, string permission)
         {
+            if (permission == RoleNames.Unauthenticated)
+            {
+                return userId == -1;
+            }
             if ("[" + userId + "]" == permission)
             {
                 return true;
             }
-
             if (roles != null)
             {
                 return roles.IndexOf(";" + permission + ";") != -1;
             }
             return false;
+        }
+
+        public static bool ContainsRole(string permissionStrings, string permissionName, string roleName)
+        {
+            return GetPermissionStrings(permissionStrings).FirstOrDefault(item => item.PermissionName == permissionName).Permissions.Split(';').Contains(roleName);
+        }
+
+        public static bool ContainsUser(string permissionStrings, string permissionName, int userId)
+        {
+            return GetPermissionStrings(permissionStrings).FirstOrDefault(item => item.PermissionName == permissionName).Permissions.Split(';').Contains($"[{userId}]");
         }
 
         public static ClaimsIdentity CreateClaimsIdentity(Alias alias, User user, List<UserRole> userroles)
@@ -133,8 +146,8 @@ namespace Oqtane.Security
             if (alias != null && user != null && !user.IsDeleted)
             {
                 identity.AddClaim(new Claim(ClaimTypes.Name, user.Username));
-                identity.AddClaim(new Claim(ClaimTypes.PrimarySid, user.UserId.ToString()));
-                identity.AddClaim(new Claim(ClaimTypes.GroupSid, alias.AliasId.ToString()));
+                identity.AddClaim(new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()));
+                identity.AddClaim(new Claim("sitekey", alias.SiteKey));
                 if (user.Roles.Contains(RoleNames.Host))
                 {
                     // host users are site admins by default
