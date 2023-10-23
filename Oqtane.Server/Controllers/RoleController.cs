@@ -59,16 +59,23 @@ namespace Oqtane.Controllers
                 return role;
             }
             else
-            { 
-                _logger.Log(LogLevel.Error, this, LogFunction.Security, "Unauthorized Role Get Attempt {RoleId}", id);
-                HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+            {
+                if (role != null)
+                {
+                    _logger.Log(LogLevel.Error, this, LogFunction.Security, "Unauthorized Role Get Attempt {RoleId}", id);
+                    HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                }
+                else
+                {
+                    HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                }
                 return null;
             }
         }
 
         // POST api/<controller>
         [HttpPost]
-        [Authorize(Roles = RoleNames.Admin)]
+        [Authorize(Policy = $"{EntityNames.Role}:{PermissionNames.Write}:{RoleNames.Admin}")]
         public Role Post([FromBody] Role role)
         {
             if (ModelState.IsValid && role.SiteId == _alias.SiteId)
@@ -88,7 +95,7 @@ namespace Oqtane.Controllers
 
         // PUT api/<controller>/5
         [HttpPut("{id}")]
-        [Authorize(Roles = RoleNames.Admin)]
+        [Authorize(Policy = $"{EntityNames.Role}:{PermissionNames.Write}:{RoleNames.Admin}")]
         public Role Put(int id, [FromBody] Role role)
         {
             if (ModelState.IsValid && role.SiteId == _alias.SiteId && _roles.GetRole(role.RoleId, false) != null)
@@ -108,7 +115,7 @@ namespace Oqtane.Controllers
 
         // DELETE api/<controller>/5
         [HttpDelete("{id}")]
-        [Authorize(Roles = RoleNames.Admin)]
+        [Authorize(Policy = $"{EntityNames.Role}:{PermissionNames.Write}:{RoleNames.Admin}")]
         public void Delete(int id)
         {
             var role = _roles.GetRole(id);

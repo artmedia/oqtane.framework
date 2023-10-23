@@ -9,7 +9,7 @@ using Oqtane.Infrastructure;
 using Oqtane.Repository;
 using Oqtane.Security;
 using System.Net;
-using Microsoft.AspNetCore.Mvc.RazorPages;
+using System;
 
 namespace Oqtane.Controllers
 {
@@ -38,14 +38,21 @@ namespace Oqtane.Controllers
         public PageModule Get(int id)
         {
             PageModule pagemodule = _pageModules.GetPageModule(id);
-            if (pagemodule != null && pagemodule.Module.SiteId == _alias.SiteId && _userPermissions.IsAuthorized(User, PermissionNames.View, pagemodule.Module.Permissions))
+            if (pagemodule != null && pagemodule.Module.SiteId == _alias.SiteId && _userPermissions.IsAuthorized(User, PermissionNames.View, pagemodule.Module.PermissionList))
             {
                 return pagemodule;
             }
             else
             {
-                _logger.Log(LogLevel.Error, this, LogFunction.Security, "Unauthorized PageModule Get Attempt {PageModuleId}", id);
-                HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                if (pagemodule != null)
+                {
+                    _logger.Log(LogLevel.Error, this, LogFunction.Security, "Unauthorized PageModule Get Attempt {PageModuleId}", id);
+                    HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                }
+                else
+                {
+                    HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                }
                 return null;
             }
         }
@@ -55,14 +62,21 @@ namespace Oqtane.Controllers
         public PageModule Get(int pageid, int moduleid)
         {
             PageModule pagemodule = _pageModules.GetPageModule(pageid, moduleid);
-            if (pagemodule != null && pagemodule.Module.SiteId == _alias.SiteId && _userPermissions.IsAuthorized(User, PermissionNames.View, pagemodule.Module.Permissions))
+            if (pagemodule != null && pagemodule.Module.SiteId == _alias.SiteId && _userPermissions.IsAuthorized(User, PermissionNames.View, pagemodule.Module.PermissionList))
             {
                 return pagemodule;
             }
             else
             {
-                _logger.Log(LogLevel.Error, this, LogFunction.Security, "Unauthorized PageModule Get Attempt {PageId} {ModuleId}", pageid, moduleid);
-                HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                if (pagemodule != null)
+                {
+                    _logger.Log(LogLevel.Error, this, LogFunction.Security, "Unauthorized PageModule Get Attempt {PageId} {ModuleId}", pageid, moduleid);
+                    HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                }
+                else
+                {
+                    HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                }
                 return null;
             }
         }
@@ -73,7 +87,7 @@ namespace Oqtane.Controllers
         public PageModule Post([FromBody] PageModule pageModule)
         {
             var page = _pages.GetPage(pageModule.PageId);
-            if (ModelState.IsValid && page != null && page.SiteId == _alias.SiteId && _userPermissions.IsAuthorized(User, EntityNames.Page, pageModule.PageId, PermissionNames.Edit))
+            if (ModelState.IsValid && page != null && page.SiteId == _alias.SiteId && _userPermissions.IsAuthorized(User, page.SiteId, EntityNames.Page, pageModule.PageId, PermissionNames.Edit))
             {
                 pageModule = _pageModules.AddPageModule(pageModule);
                 _syncManager.AddSyncEvent(_alias.TenantId, EntityNames.PageModule, pageModule.PageModuleId, SyncEventActions.Create);
@@ -95,7 +109,7 @@ namespace Oqtane.Controllers
         public PageModule Put(int id, [FromBody] PageModule pageModule)
         {
             var page = _pages.GetPage(pageModule.PageId);
-            if (ModelState.IsValid && page != null && page.SiteId == _alias.SiteId && _pageModules.GetPageModule(pageModule.PageModuleId, false) != null && _userPermissions.IsAuthorized(User, EntityNames.Page, pageModule.PageId, PermissionNames.Edit))
+            if (ModelState.IsValid && page != null && page.SiteId == _alias.SiteId && _pageModules.GetPageModule(pageModule.PageModuleId, false) != null && _userPermissions.IsAuthorized(User, page.SiteId, EntityNames.Page, pageModule.PageId, PermissionNames.Edit))
             {
                 pageModule = _pageModules.UpdatePageModule(pageModule);
                 _syncManager.AddSyncEvent(_alias.TenantId, EntityNames.PageModule, pageModule.PageModuleId, SyncEventActions.Update);
@@ -117,15 +131,24 @@ namespace Oqtane.Controllers
         public void Put(int pageid, string pane)
         {
             var page = _pages.GetPage(pageid);
-            if (page != null && page.SiteId == _alias.SiteId && _userPermissions.IsAuthorized(User, EntityNames.Page, pageid, PermissionNames.Edit))
+            if (page != null && page.SiteId == _alias.SiteId && _userPermissions.IsAuthorized(User, page.SiteId, EntityNames.Page, pageid, PermissionNames.Edit))
             {
+                var panes = pane;
+                if (pane == PaneNames.Default || pane == PaneNames.Admin)
+                {
+                    // treat default and admin panes as a single pane
+                    panes = PaneNames.Default + "," + PaneNames.Admin;
+                    pane = PaneNames.Default;
+                }
                 int order = 1;
-                List<PageModule> pagemodules = _pageModules.GetPageModules(pageid, pane).OrderBy(item => item.Order).ToList();
+                List<PageModule> pagemodules = _pageModules.GetPageModules(page.SiteId)
+                    .Where(item => item.PageId == pageid && panes.Split(',').Contains(item.Pane)).OrderBy(item => item.Order).ToList();
                 foreach (PageModule pagemodule in pagemodules)
                 {
-                    if (pagemodule.Order != order)
+                    if (pagemodule.Order != order || pagemodule.Pane != pane)
                     {
                         pagemodule.Order = order;
+                        pagemodule.Pane = pane;
                         _pageModules.UpdatePageModule(pagemodule);
                         _syncManager.AddSyncEvent(_alias.TenantId, EntityNames.PageModule, pagemodule.PageModuleId, SyncEventActions.Update);
                     }
@@ -147,7 +170,7 @@ namespace Oqtane.Controllers
         public void Delete(int id)
         {
             PageModule pagemodule = _pageModules.GetPageModule(id);
-            if (pagemodule != null && pagemodule.Module.SiteId == _alias.SiteId && _userPermissions.IsAuthorized(User, EntityNames.Page, pagemodule.PageId, PermissionNames.Edit))
+            if (pagemodule != null && pagemodule.Module.SiteId == _alias.SiteId && _userPermissions.IsAuthorized(User, pagemodule.Module.SiteId, EntityNames.Page, pagemodule.PageId, PermissionNames.Edit))
             {
                 _pageModules.DeletePageModule(id);
                 _syncManager.AddSyncEvent(_alias.TenantId, EntityNames.PageModule, pagemodule.PageModuleId, SyncEventActions.Delete);

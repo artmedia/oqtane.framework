@@ -1,16 +1,20 @@
 using System;
+using Oqtane.Models;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 
 namespace Oqtane.Shared
 {
     public class Constants
     {
-        public static readonly string Version = "3.2.1";
-        public const string ReleaseVersions = "1.0.0,1.0.1,1.0.2,1.0.3,1.0.4,2.0.0,2.0.1,2.0.2,2.1.0,2.2.0,2.3.0,2.3.1,3.0.0,3.0.1,3.0.2,3.0.3,3.1.0,3.1.1,3.1.2,3.1.3,3.1.4,3.2.0,3.2.1";
+        public static readonly string Version = "4.0.6";
+        public const string ReleaseVersions = "1.0.0,1.0.1,1.0.2,1.0.3,1.0.4,2.0.0,2.0.1,2.0.2,2.1.0,2.2.0,2.3.0,2.3.1,3.0.0,3.0.1,3.0.2,3.0.3,3.1.0,3.1.1,3.1.2,3.1.3,3.1.4,3.2.0,3.2.1,3.3.0,3.3.1,3.4.0,3.4.1,3.4.2,3.4.3,4.0.0,4.0.1,4.0.2,4.0.3,4.0.4,4.0.5,4.0.6";
         public const string PackageId = "Oqtane.Framework";
         public const string ClientId = "Oqtane.Client";
         public const string UpdaterPackageId = "Oqtane.Updater";
         public const string PackageRegistryUrl = "https://www.oqtane.net";
 
+        public const string DataDirectory = "DataDirectory";
         public const string DefaultDBType = "Oqtane.Database.SqlServer.SqlServerDatabase, Oqtane.Database.SqlServer";
 
         public const string PageComponent = "Oqtane.UI.ThemeBuilder, Oqtane.Client";
@@ -38,6 +42,8 @@ namespace Oqtane.Shared
 
         public const string DefaultSiteTemplate = "Oqtane.SiteTemplates.DefaultSiteTemplate, Oqtane.Server";
 
+        public static readonly string[] DefaultHostModuleTypes = new[] { "Upgrade", "Themes", "SystemInfo", "Sql", "Sites", "ModuleDefinitions", "Logs", "Jobs", "ModuleCreator" };
+
         public const string FileUrl = "/files/";
         public const string ImageUrl = "/api/file/image/";
         public const int UserFolderCapacity = 20; // megabytes
@@ -46,7 +52,7 @@ namespace Oqtane.Shared
         public const string DefaultSite = "Default Site";
 
         public const string ImageFiles = "jpg,jpeg,jpe,gif,bmp,png,ico,webp";
-        public const string UploadableFiles = ImageFiles + ",mov,wmv,avi,mp4,mp3,doc,docx,xls,xlsx,ppt,pptx,pdf,txt,zip,nupkg,csv,json,xml,xslt,rss,html,htm,css";
+        public const string UploadableFiles = ImageFiles + ",mov,wmv,avi,mp4,mp3,doc,docx,xls,xlsx,ppt,pptx,pdf,txt,zip,nupkg,csv,json,xml,rss,css";
         public const string ReservedDevices = "CON,NUL,PRN,COM0,COM1,COM2,COM3,COM4,COM5,COM6,COM7,COM8,COM9,LPT0,LPT1,LPT2,LPT3,LPT4,LPT5,LPT6,LPT7,LPT8,LPT9,CONIN$,CONOUT$";
 
         public static readonly char[] InvalidFileNameChars =
@@ -73,6 +79,8 @@ namespace Oqtane.Shared
         public static readonly string HttpContextSiteSettingsKey = "SiteSettings";
 
         public static readonly string MauiUserAgent = "MAUI";
+        public static readonly string MauiAliasPath = "Alias-Path";
+        public static readonly string VisitorCookiePrefix = "APP_VISITOR_";
 
         // Obsolete constants
 

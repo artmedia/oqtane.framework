@@ -17,45 +17,37 @@ else
 {
     <TabStrip>
         <TabPanel Name="Users" Heading="Users" ResourceKey="Users">
-			<div class="container">
-				<div class="row mb-1 align-items-center">
-					<div class="col-sm-4">
-						<ActionLink Action="Add" Text="Add User" ResourceKey="AddUser" />
-					</div>
-					<div class="col-sm-4">
-						<input class="form-control" @bind="@_search" />
-					</div>
-					<div class="col-sm-4">
-						<button type="button" class="btn btn-secondary" @onclick="OnSearch">@SharedLocalizer["Search"]</button>
-					</div>
-				</div>
-			</div>
-			<Pager Items="@users" RowClass="align-middle">
+			<ActionLink Action="Add" Text="Add User" Security="SecurityAccessLevel.Edit" ResourceKey="AddUser" />&nbsp;
+            <ActionLink Text="Import Users" Class="btn btn-secondary ms-2" Action="Users" Security="SecurityAccessLevel.Admin" ResourceKey="ImportUsers"/>
+
+            <Pager Items="@users" RowClass="align-middle" SearchProperties="User.Username,User.Email,User.DisplayName">
 				<Header>
 					<th style="width: 1px;">&nbsp;</th>
 					<th style="width: 1px;">&nbsp;</th>
 					<th style="width: 1px;">&nbsp;</th>
-					<th>@SharedLocalizer["Username"]</th>
-					<th>@SharedLocalizer["Name"]</th>
-					<th>@Localizer["LastLoginOn"]</th>
+                    <th class="app-sort-th link-primary text-decoration-underline" @onclick="@(() => SortTable("Username"))">@Localizer["Username"]<i class="@(SetSortIcon("Username"))"></i></th>
+                    <th class="app-sort-th link-primary text-decoration-underline" @onclick="@(() => SortTable("DisplayName"))">@Localizer["Name"]<i class="@(SetSortIcon("DisplayName"))"></i></th>
+                    <th class="app-sort-th link-primary text-decoration-underline" @onclick="@(() => SortTable("Email"))">@Localizer["Email"]<i class="@(SetSortIcon("Email"))"></i></th>
+                    <th class="app-sort-th link-primary text-decoration-underline" @onclick="@(() => SortTable("LastLoginOn"))">@Localizer["LastLoginOn"]<i class="@(SetSortIcon("LastLoginOn"))"></i></th>
 				</Header>
 				<Row>
 					<td>
-						<ActionLink Action="Edit" Parameters="@($"id=" + context.UserId.ToString())" ResourceKey="EditUser" />
+						<ActionLink Action="Edit" Parameters="@($"id=" + context.UserId.ToString())" Security="SecurityAccessLevel.Edit" ResourceKey="EditUser" />
 					</td>
 					<td>
-						<ActionDialog Header="Delete User" Message="@string.Format(Localizer["Confirm.User.Delete"], context.User.DisplayName)" Action="Delete" Security="SecurityAccessLevel.Admin" Class="btn btn-danger" OnClick="@(async () => await DeleteUser(context))" Disabled="@(context.UserId == PageState.User.UserId)" ResourceKey="DeleteUser" />
+						<ActionDialog Header="Delete User" Message="@string.Format(Localizer["Confirm.User.Delete"], context.User.DisplayName)" Action="Delete" Security="SecurityAccessLevel.Edit" Class="btn btn-danger" OnClick="@(async () => await DeleteUser(context))" Disabled="@(context.UserId == PageState.User.UserId)" ResourceKey="DeleteUser" />
 					</td>
 					<td>
-						<ActionLink Action="Roles" Parameters="@($"id=" + context.UserId.ToString())" ResourceKey="Roles" />
+						<ActionLink Action="Roles" Parameters="@($"id=" + context.UserId.ToString())" Security="SecurityAccessLevel.Edit" ResourceKey="Roles" />
 					</td>
 					<td>@context.User.Username</td>
-					<td>@((MarkupString)string.Format("<a href=\"mailto:{0}\">{1}</a>", @context.User.Email, @context.User.DisplayName))</td>
-					<td>@string.Format("{0:dd-MMM-yyyy HH:mm:ss}", context.User.LastLoginOn)</td>
+					<td>@context.User.DisplayName</td>
+					<td>@((MarkupString)string.Format("<a href=\"mailto:{0}\">{1}</a>", @context.User.Email, @context.User.Email))</td>
+					<td>@((context.User.LastLoginOn != DateTime.MinValue) ? string.Format("{0:dd-MMM-yyyy HH:mm:ss}", context.User.LastLoginOn) : "")</td>
 				</Row>
 			</Pager>
-	</TabPanel>
-        <TabPanel Name="Settings" Heading="Settings" ResourceKey="Settings">
+        </TabPanel>
+        <TabPanel Name="Settings" Heading="Settings" ResourceKey="Settings" Security="SecurityAccessLevel.Admin">
 			<div class="container">
 				<Section Name="User" Heading="User Settings" ResourceKey="UserSettings">
 					<div class="row mb-1 align-items-center">
@@ -259,7 +251,22 @@ else
 									<input id="parameters" class="form-control" @bind="@_parameters" />
 								</div>
 							</div>
-							<div class="row mb-1 align-items-center">
+                            <div class="row mb-1 align-items-center">
+                                <Label Class="col-sm-3" For="authresponsetype" HelpText="Specify the authorization response type" ResourceKey="AuthResponseType">Authorization Response Type</Label>
+                                <div class="col-sm-9">
+                                    <select id="authresponsetype" class="form-select" @bind="@_authresponsetype" required>
+                                        <option value="code">@Localizer["AuthFlow.Code"]</option>
+                                        <option value="code id_token">@Localizer["AuthFlow.CodeIdToken"]</option>
+                                        <option value="code id_token token">@Localizer["AuthFlow.CodeIdTokenToken"]</option>
+                                        <option value="code token">@Localizer["AuthFlow.CodeToken"]</option>
+                                        <option value="id_token">@Localizer["AuthFlow.IdToken"]</option>
+                                        <option value="id_token token">@Localizer["AuthFlow.IdTokenToken"]</option>
+                                        <option value="token">@Localizer["AuthFlow.Token"]</option>
+                                        <option value="none">@Localizer["AuthFlow.None"]</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="row mb-1 align-items-center">
 								<Label Class="col-sm-3" For="pkce" HelpText="Indicate if the provider supports Proof Key for Code Exchange (PKCE)" ResourceKey="PKCE">Use PKCE?</Label>
 								<div class="col-sm-9">
 									<select id="pkce" class="form-select" @bind="@_pkce" required>
@@ -292,6 +299,12 @@ else
 									<Label Class="col-sm-3" For="roleclaimtype" HelpText="The name of the role claim provided by the provider" ResourceKey="RoleClaimType">Role Claim:</Label>
 									<div class="col-sm-9">
 										<input id="roleclaimtype" class="form-control" @bind="@_roleclaimtype" />
+									</div>
+								</div>
+								<div class="row mb-1 align-items-center">
+									<Label Class="col-sm-3" For="profileclaimtypes" HelpText="A comma delimited list of user profile claims provided by the provider, as well as mappings to your user profile definition. For example if the provider includes a 'given_name' claim and you have a 'FirstName' user profile definition you should specify 'given_name:FirstName'." ResourceKey="ProfileClaimTypes">User Profile Claims:</Label>
+									<div class="col-sm-9">
+										<input id="profileclaimtypes" class="form-control" @bind="@_profileclaimtypes" />
 									</div>
 								</div>
 							}
@@ -354,141 +367,128 @@ else
 			</div>
 			<br />
 			<button type="button" class="btn btn-success" @onclick="SaveSiteSettings">@SharedLocalizer["Save"]</button>
-		</TabPanel>
+        </TabPanel>
 	</TabStrip>
 }
 
 @code {
-	private List<UserRole> allusers;
-	private List<UserRole> users;
-	private string _search = "";
+    private List<UserRole> users;
 
-	private string _allowregistration;
-	private string _allowsitelogin;
-	private string _twofactor;
-	private string _cookiename;
+    private string _allowregistration;
+    private string _allowsitelogin;
+    private string _twofactor;
+    private string _cookiename;
 
-	private string _minimumlength;
-	private string _uniquecharacters;
-	private string _requiredigit;
-	private string _requireupper;
-	private string _requirelower;
-	private string _requirepunctuation;
-	private string _maximumfailures;
-	private string _lockoutduration;
+    private string _minimumlength;
+    private string _uniquecharacters;
+    private string _requiredigit;
+    private string _requireupper;
+    private string _requirelower;
+    private string _requirepunctuation;
+    private string _maximumfailures;
+    private string _lockoutduration;
 
-	private string _providertype;
-	private string _providername;
-	private string _authority;
-	private string _metadataurl;
-	private string _authorizationurl;
-	private string _tokenurl;
-	private string _userinfourl;
-	private string _clientid;
-	private string _clientsecret;
-	private string _clientsecrettype = "password";
-	private string _toggleclientsecret = string.Empty;
-	private string _scopes;
-	private string _parameters;
-	private string _pkce;
-	private string _redirecturl;
-	private string _identifierclaimtype;
-	private string _emailclaimtype;
-	private string _roleclaimtype;
-	private string _domainfilter;
-	private string _createusers;
+    private string _providertype;
+    private string _providername;
+    private string _authority;
+    private string _metadataurl;
+    private string _authorizationurl;
+    private string _tokenurl;
+    private string _userinfourl;
+    private string _clientid;
+    private string _clientsecret;
+    private string _clientsecrettype = "password";
+    private string _toggleclientsecret = string.Empty;
+    private string _scopes;
+    private string _parameters;
+    private string _pkce;
+    private string _authresponsetype;
+    private string _redirecturl;
+    private string _identifierclaimtype;
+    private string _emailclaimtype;
+    private string _roleclaimtype;
+    private string _profileclaimtypes;
+    private string _domainfilter;
+    private string _createusers;
 
-	private string _secret;
-	private string _secrettype = "password";
-	private string _togglesecret = string.Empty;
-	private string _issuer;
-	private string _audience;
-	private string _lifetime;
-	private string _token;
+    private string _secret;
+    private string _secrettype = "password";
+    private string _togglesecret = string.Empty;
+    private string _issuer;
+    private string _audience;
+    private string _lifetime;
+    private string _token;
 
-	public override SecurityAccessLevel SecurityAccessLevel => SecurityAccessLevel.Admin;
+    private bool isSortedAscending;
+    private string activeSortColumn;
 
-	protected override async Task OnInitializedAsync()
-	{
-		await LoadUserSettingsAsync();
-		await LoadUsersAsync(true);
+    public override SecurityAccessLevel SecurityAccessLevel => SecurityAccessLevel.View;
 
-		var settings = await SettingService.GetSiteSettingsAsync(PageState.Site.SiteId);
-		_allowregistration = PageState.Site.AllowRegistration.ToString();
-		_allowsitelogin = SettingService.GetSetting(settings, "LoginOptions:AllowSiteLogin", "true");
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsersAsync(true);
 
-		if (UserSecurity.IsAuthorized(PageState.User, RoleNames.Host))
-		{
-			_twofactor = SettingService.GetSetting(settings, "LoginOptions:TwoFactor", "false");
-			_cookiename = SettingService.GetSetting(settings, "LoginOptions:CookieName", ".AspNetCore.Identity.Application");
+        var settings = await SettingService.GetSiteSettingsAsync(PageState.Site.SiteId);
+        _allowregistration = PageState.Site.AllowRegistration.ToString();
+        _allowsitelogin = SettingService.GetSetting(settings, "LoginOptions:AllowSiteLogin", "true");
 
-			_minimumlength = SettingService.GetSetting(settings, "IdentityOptions:Password:RequiredLength", "6");
-			_uniquecharacters = SettingService.GetSetting(settings, "IdentityOptions:Password:RequiredUniqueChars", "1");
-			_requiredigit = SettingService.GetSetting(settings, "IdentityOptions:Password:RequireDigit", "true");
-			_requireupper = SettingService.GetSetting(settings, "IdentityOptions:Password:RequireUppercase", "true");
-			_requirelower = SettingService.GetSetting(settings, "IdentityOptions:Password:RequireLowercase", "true");
-			_requirepunctuation = SettingService.GetSetting(settings, "IdentityOptions:Password:RequireNonAlphanumeric", "true");
+        if (UserSecurity.IsAuthorized(PageState.User, RoleNames.Host))
+        {
+            _twofactor = SettingService.GetSetting(settings, "LoginOptions:TwoFactor", "false");
+            _cookiename = SettingService.GetSetting(settings, "LoginOptions:CookieName", ".AspNetCore.Identity.Application");
 
-			_maximumfailures = SettingService.GetSetting(settings, "IdentityOptions:Lockout:MaxFailedAccessAttempts", "5");
-			_lockoutduration = TimeSpan.Parse(SettingService.GetSetting(settings, "IdentityOptions:Lockout:DefaultLockoutTimeSpan", "00:05:00")).TotalMinutes.ToString();
+            _minimumlength = SettingService.GetSetting(settings, "IdentityOptions:Password:RequiredLength", "6");
+            _uniquecharacters = SettingService.GetSetting(settings, "IdentityOptions:Password:RequiredUniqueChars", "1");
+            _requiredigit = SettingService.GetSetting(settings, "IdentityOptions:Password:RequireDigit", "true");
+            _requireupper = SettingService.GetSetting(settings, "IdentityOptions:Password:RequireUppercase", "true");
+            _requirelower = SettingService.GetSetting(settings, "IdentityOptions:Password:RequireLowercase", "true");
+            _requirepunctuation = SettingService.GetSetting(settings, "IdentityOptions:Password:RequireNonAlphanumeric", "true");
 
-			_providertype = SettingService.GetSetting(settings, "ExternalLogin:ProviderType", "");
-			_providername = SettingService.GetSetting(settings, "ExternalLogin:ProviderName", "");
-			_authority = SettingService.GetSetting(settings, "ExternalLogin:Authority", "");
-			_metadataurl = SettingService.GetSetting(settings, "ExternalLogin:MetadataUrl", "");
-			_authorizationurl = SettingService.GetSetting(settings, "ExternalLogin:AuthorizationUrl", "");
-			_tokenurl = SettingService.GetSetting(settings, "ExternalLogin:TokenUrl", "");
-			_userinfourl = SettingService.GetSetting(settings, "ExternalLogin:UserInfoUrl", "");
-			_clientid = SettingService.GetSetting(settings, "ExternalLogin:ClientId", "");
-			_clientsecret = SettingService.GetSetting(settings, "ExternalLogin:ClientSecret", "");
-			_toggleclientsecret = SharedLocalizer["ShowPassword"];
-			_scopes = SettingService.GetSetting(settings, "ExternalLogin:Scopes", "");
-			_parameters = SettingService.GetSetting(settings, "ExternalLogin:Parameters", "");
-			_pkce = SettingService.GetSetting(settings, "ExternalLogin:PKCE", "false");
-			_redirecturl = PageState.Uri.Scheme + "://" + PageState.Alias.Name + "/signin-" + _providertype;
-			_identifierclaimtype = SettingService.GetSetting(settings, "ExternalLogin:IdentifierClaimType", "sub");
-			_emailclaimtype = SettingService.GetSetting(settings, "ExternalLogin:EmailClaimType", "email");
-			_roleclaimtype = SettingService.GetSetting(settings, "ExternalLogin:RoleClaimType", "");
-			_domainfilter = SettingService.GetSetting(settings, "ExternalLogin:DomainFilter", "");
-			_createusers = SettingService.GetSetting(settings, "ExternalLogin:CreateUsers", "true");
+            _maximumfailures = SettingService.GetSetting(settings, "IdentityOptions:Lockout:MaxFailedAccessAttempts", "5");
+            _lockoutduration = TimeSpan.Parse(SettingService.GetSetting(settings, "IdentityOptions:Lockout:DefaultLockoutTimeSpan", "00:05:00")).TotalMinutes.ToString();
 
-			_secret = SettingService.GetSetting(settings, "JwtOptions:Secret", "");
-			_togglesecret = SharedLocalizer["ShowPassword"];
-			_issuer = SettingService.GetSetting(settings, "JwtOptions:Issuer", PageState.Uri.Scheme + "://" + PageState.Alias.Name);
-			_audience = SettingService.GetSetting(settings, "JwtOptions:Audience", "");
-			_lifetime = SettingService.GetSetting(settings, "JwtOptions:Lifetime", "20");		}
-	}
+            _providertype = SettingService.GetSetting(settings, "ExternalLogin:ProviderType", "");
+            _providername = SettingService.GetSetting(settings, "ExternalLogin:ProviderName", "");
+            _authority = SettingService.GetSetting(settings, "ExternalLogin:Authority", "");
+            _metadataurl = SettingService.GetSetting(settings, "ExternalLogin:MetadataUrl", "");
+            _authorizationurl = SettingService.GetSetting(settings, "ExternalLogin:AuthorizationUrl", "");
+            _tokenurl = SettingService.GetSetting(settings, "ExternalLogin:TokenUrl", "");
+            _userinfourl = SettingService.GetSetting(settings, "ExternalLogin:UserInfoUrl", "");
+            _clientid = SettingService.GetSetting(settings, "ExternalLogin:ClientId", "");
+            _clientsecret = SettingService.GetSetting(settings, "ExternalLogin:ClientSecret", "");
+            _toggleclientsecret = SharedLocalizer["ShowPassword"];
+            _scopes = SettingService.GetSetting(settings, "ExternalLogin:Scopes", "");
+            _parameters = SettingService.GetSetting(settings, "ExternalLogin:Parameters", "");
+            _pkce = SettingService.GetSetting(settings, "ExternalLogin:PKCE", "false");
+            _authresponsetype = SettingService.GetSetting(settings, "ExternalLogin:AuthResponseType", "code");
+            _redirecturl = PageState.Uri.Scheme + "://" + PageState.Alias.Name + "/signin-" + _providertype;
+            _identifierclaimtype = SettingService.GetSetting(settings, "ExternalLogin:IdentifierClaimType", "sub");
+            _emailclaimtype = SettingService.GetSetting(settings, "ExternalLogin:EmailClaimType", "email");
+            _roleclaimtype = SettingService.GetSetting(settings, "ExternalLogin:RoleClaimType", "");
+            _profileclaimtypes = SettingService.GetSetting(settings, "ExternalLogin:ProfileClaimTypes", "");
+            _domainfilter = SettingService.GetSetting(settings, "ExternalLogin:DomainFilter", "");
+            _createusers = SettingService.GetSetting(settings, "ExternalLogin:CreateUsers", "true");
 
-	private async Task LoadUsersAsync(bool load)
-	{
-		if (load)
-		{
-			allusers = await UserRoleService.GetUserRolesAsync(PageState.Site.SiteId, RoleNames.Registered);
-			if (UserSecurity.IsAuthorized(PageState.User, RoleNames.Host))
-			{
-				var hosts = await UserRoleService.GetUserRolesAsync(PageState.Site.SiteId, RoleNames.Host);
-				allusers.AddRange(hosts);
-				allusers = allusers.OrderBy(u => u.User.DisplayName).ToList();
-			}			
-		}
+            _secret = SettingService.GetSetting(settings, "JwtOptions:Secret", "");
+            _togglesecret = SharedLocalizer["ShowPassword"];
+            _issuer = SettingService.GetSetting(settings, "JwtOptions:Issuer", PageState.Uri.Scheme + "://" + PageState.Alias.Name);
+            _audience = SettingService.GetSetting(settings, "JwtOptions:Audience", "");
+            _lifetime = SettingService.GetSetting(settings, "JwtOptions:Lifetime", "20");
+        }
+    }
 
-		users = allusers;
-		if (!string.IsNullOrEmpty(_search))
-		{
-			users = users.Where(item =>
-				(
-					item.User.Username.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
-					item.User.Email.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
-					item.User.DisplayName.Contains(_search, StringComparison.OrdinalIgnoreCase)
-				)
-			).ToList();
-		}
-	}
-
-	private async Task OnSearch()
-	{
-		await UpdateUserSettingsAsync();
-		await LoadUsersAsync(false);
+    private async Task LoadUsersAsync(bool load)
+    {
+        if (load)
+        {
+            users = await UserRoleService.GetUserRolesAsync(PageState.Site.SiteId, RoleNames.Registered);
+            if (UserSecurity.IsAuthorized(PageState.User, RoleNames.Host))
+            {
+                var hosts = await UserRoleService.GetUserRolesAsync(PageState.Site.SiteId, RoleNames.Host);
+                users.AddRange(hosts);
+                users = users.OrderBy(u => u.User.DisplayName).ToList();
+            }           
+        }
 	}
 
 	private async Task DeleteUser(UserRole UserRole)
@@ -509,21 +509,6 @@ else
 			await logger.LogError(ex, "Error Deleting User {User} {Error}", UserRole.User, ex.Message);
 			AddModuleMessage(ex.Message, MessageType.Error);
 		}
-	}
-
-	private string settingSearch = "AU-search";
-
-	private async Task LoadUserSettingsAsync()
-	{
-		Dictionary<string, string> settings = await SettingService.GetUserSettingsAsync(PageState.User.UserId);
-		_search = SettingService.GetSetting(settings, settingSearch, "");
-	}
-
-	private async Task UpdateUserSettingsAsync()
-	{
-		Dictionary<string, string> settings = await SettingService.GetUserSettingsAsync(PageState.User.UserId);
-		SettingService.SetSetting(settings, settingSearch, _search);
-		await SettingService.UpdateUserSettingsAsync(settings, PageState.User.UserId);
 	}
 
 	private async Task SaveSiteSettings()
@@ -564,9 +549,11 @@ else
 				settings = SettingService.SetSetting(settings, "ExternalLogin:Scopes", _scopes, true);
 				settings = SettingService.SetSetting(settings, "ExternalLogin:Parameters", _parameters, true);
 				settings = SettingService.SetSetting(settings, "ExternalLogin:PKCE", _pkce, true);
+                settings = SettingService.SetSetting(settings, "ExternalLogin:AuthResponseType", _authresponsetype, true);
 				settings = SettingService.SetSetting(settings, "ExternalLogin:IdentifierClaimType", _identifierclaimtype, true);
 				settings = SettingService.SetSetting(settings, "ExternalLogin:EmailClaimType", _emailclaimtype, true);
 				settings = SettingService.SetSetting(settings, "ExternalLogin:RoleClaimType", _roleclaimtype, true);
+				settings = SettingService.SetSetting(settings, "ExternalLogin:ProfileClaimTypes", _profileclaimtypes, true);
 				settings = SettingService.SetSetting(settings, "ExternalLogin:DomainFilter", _domainfilter, true);
 				settings = SettingService.SetSetting(settings, "ExternalLogin:CreateUsers", _createusers, true);
 
@@ -644,4 +631,43 @@ else
 			_togglesecret = SharedLocalizer["ShowPassword"];
 		}
 	}
+
+    private void SortTable(string columnName)
+    {
+        if (columnName != activeSortColumn)
+        {
+            users = users.OrderBy(x => x.User.GetType().GetProperty(columnName)?.GetValue(x.User)).ToList();
+            isSortedAscending = true;
+            activeSortColumn = columnName;
+        }
+        else
+        {
+            if (isSortedAscending)
+            {
+                users = users.OrderByDescending(x => x.User.GetType().GetProperty(columnName)?.GetValue(x.User)).ToList();
+            }
+            else
+            {
+                users = users.OrderBy(x => x.User.GetType().GetProperty(columnName)?.GetValue(x.User)).ToList();
+            }
+
+            isSortedAscending = !isSortedAscending;
+        }
+    }
+
+    private string SetSortIcon(string columnName)
+    {
+        if (activeSortColumn != columnName)
+        {
+            return "app-fas pe-3 ";
+        }
+        if (isSortedAscending)
+        {
+            return "app-fas oi oi-sort-ascending";
+        }
+        else
+        {
+            return "app-fas oi oi-sort-descending";
+        }
+    }
 }

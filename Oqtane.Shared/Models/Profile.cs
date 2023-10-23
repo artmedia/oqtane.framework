@@ -6,7 +6,7 @@ namespace Oqtane.Models
     /// A single Profile Property information of a <see cref="User"/>.  
     /// So a user will have many of these to fully describe his Profile. 
     /// </summary>
-    public class Profile : IAuditable
+    public class Profile : ModelBase
     {
         /// <summary>
         /// Internal ID
@@ -69,20 +69,14 @@ namespace Oqtane.Models
         /// </summary>
         public string Options { get; set; }
 
-        #region IAuditable Properties
+        /// <summary>
+        /// Optional RegExp validation expression 
+        /// </summary>
+        public string Validation { get; set; }
 
-        /// <inheritdoc/>
-        public string CreatedBy { get; set; }
-
-        /// <inheritdoc/>
-        public DateTime CreatedOn { get; set; }
-
-        /// <inheritdoc/>
-        public string ModifiedBy { get; set; }
-
-        /// <inheritdoc/>
-        public DateTime ModifiedOn { get; set; }
-
-        #endregion
+        /// <summary>
+        /// Optional number of rows (textarea)
+        /// </summary>
+        public int Rows { get; set; }
     }
 }

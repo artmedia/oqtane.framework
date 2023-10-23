@@ -144,13 +144,19 @@
   <data name="DeleteModule.Header" xml:space="preserve">
     <value>Delete Module</value>
   </data>
+  <data name="DeleteModule.Text" xml:space="preserve">
+    <value>Delete</value>
+  </data>
   <data name="InUse" xml:space="preserve">
-    <value>In Use</value>
+    <value>In Use?</value>
   </data>
   <data name="EditModule.Text" xml:space="preserve">
     <value>Edit</value>
   </data>
   <data name="Modules" xml:space="preserve">
     <value>Modules</value>
+  </data>
+  <data name="Enabled" xml:space="preserve">
+    <value>Enabled?</value>
   </data>
 </root>

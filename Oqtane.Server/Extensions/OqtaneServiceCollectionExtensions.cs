@@ -6,11 +6,11 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
-using System.Reflection.Metadata;
 using System.Runtime.Loader;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.OAuth;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -19,6 +19,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using Oqtane.Infrastructure;
+using Oqtane.Managers;
 using Oqtane.Models;
 using Oqtane.Modules;
 using Oqtane.Repository;
@@ -47,22 +48,6 @@ namespace Microsoft.Extensions.DependencyInjection
             return services;
         }
 
-        public static IServiceCollection AddOqtaneAuthorizationPolicies(this IServiceCollection services)
-        {
-            services.AddAuthorizationCore(options =>
-            {
-                options.AddPolicy(PolicyNames.ViewPage, policy => policy.Requirements.Add(new PermissionRequirement(EntityNames.Page, PermissionNames.View)));
-                options.AddPolicy(PolicyNames.EditPage, policy => policy.Requirements.Add(new PermissionRequirement(EntityNames.Page, PermissionNames.Edit)));
-                options.AddPolicy(PolicyNames.ViewModule, policy => policy.Requirements.Add(new PermissionRequirement(EntityNames.Module, PermissionNames.View)));
-                options.AddPolicy(PolicyNames.EditModule, policy => policy.Requirements.Add(new PermissionRequirement(EntityNames.Module, PermissionNames.Edit)));
-                options.AddPolicy(PolicyNames.ViewFolder, policy => policy.Requirements.Add(new PermissionRequirement(EntityNames.Folder, PermissionNames.View)));
-                options.AddPolicy(PolicyNames.EditFolder, policy => policy.Requirements.Add(new PermissionRequirement(EntityNames.Folder, PermissionNames.Edit)));
-                options.AddPolicy(PolicyNames.ListFolder, policy => policy.Requirements.Add(new PermissionRequirement(EntityNames.Folder, PermissionNames.Browse)));
-            });
-
-            return services;
-        }
-
         public static OqtaneSiteOptionsBuilder AddOqtaneSiteOptions(this IServiceCollection services)
         {
             return new OqtaneSiteOptionsBuilder(services);
@@ -76,6 +61,8 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddSingleton<IConfigManager, ConfigManager>();
             services.AddSingleton<ILoggerProvider, FileLoggerProvider>();
             services.AddSingleton<AutoValidateAntiforgeryTokenFilter>();
+            services.AddSingleton<IAuthorizationPolicyProvider, AuthorizationPolicyProvider>();
+            services.AddSingleton<IServerStateManager, ServerStateManager>();
             return services;
         }
 
@@ -87,12 +74,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
         internal static IServiceCollection AddOqtaneTransientServices(this IServiceCollection services)
         {
-            services.AddTransient<ITenantManager, TenantManager>();
-            services.AddTransient<IAliasAccessor, AliasAccessor>();
-            services.AddTransient<IUserPermissions, UserPermissions>();
-            services.AddTransient<ITenantResolver, TenantResolver>();
-            services.AddTransient<IJwtManager, JwtManager>();
-
+            // repositories
             services.AddTransient<IModuleDefinitionRepository, ModuleDefinitionRepository>();
             services.AddTransient<IThemeRepository, ThemeRepository>();
             services.AddTransient<IAliasRepository, AliasRepository>();
@@ -108,7 +90,6 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddTransient<IPermissionRepository, PermissionRepository>();
             services.AddTransient<ISettingRepository, SettingRepository>();
             services.AddTransient<ILogRepository, LogRepository>();
-            services.AddTransient<ILogManager, LogManager>();
             services.AddTransient<ILocalizationManager, LocalizationManager>();
             services.AddTransient<IJobRepository, JobRepository>();
             services.AddTransient<IJobLogRepository, JobLogRepository>();
@@ -117,10 +98,20 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddTransient<IFileRepository, FileRepository>();
             services.AddTransient<ISiteTemplateRepository, SiteTemplateRepository>();
             services.AddTransient<ISqlRepository, SqlRepository>();
-            services.AddTransient<IUpgradeManager, UpgradeManager>();
             services.AddTransient<ILanguageRepository, LanguageRepository>();
             services.AddTransient<IVisitorRepository, VisitorRepository>();
             services.AddTransient<IUrlMappingRepository, UrlMappingRepository>();
+
+            // managers
+            services.AddTransient<IDBContextDependencies, DBContextDependencies>();
+            services.AddTransient<ITenantManager, TenantManager>();
+            services.AddTransient<IAliasAccessor, AliasAccessor>();
+            services.AddTransient<IUserPermissions, UserPermissions>();
+            services.AddTransient<ITenantResolver, TenantResolver>();
+            services.AddTransient<IJwtManager, JwtManager>();
+            services.AddTransient<ILogManager, LogManager>();
+            services.AddTransient<IUpgradeManager, UpgradeManager>();
+            services.AddTransient<IUserManager, UserManager>();
 
             // obsolete - replaced by ITenantManager
             services.AddTransient<ITenantResolver, TenantResolver>();
@@ -130,6 +121,7 @@ namespace Microsoft.Extensions.DependencyInjection
 
         public static IServiceCollection ConfigureOqtaneCookieOptions(this IServiceCollection services)
         {
+            // note that ConfigureApplicationCookie internally uses an ApplicationScheme of "Identity.Application"
             services.ConfigureApplicationCookie(options =>
             {
                 options.Cookie.HttpOnly = false;
@@ -214,9 +206,12 @@ namespace Microsoft.Extensions.DependencyInjection
 
                     // set the cookies to allow HttpClient API calls to be authenticated
                     var httpContextAccessor = s.GetRequiredService<IHttpContextAccessor>();
-                    foreach (var cookie in httpContextAccessor.HttpContext.Request.Cookies)
+                    if (httpContextAccessor.HttpContext != null)
                     {
-                        client.DefaultRequestHeaders.Add("Cookie", cookie.Key + "=" + cookie.Value);
+                        foreach (var cookie in httpContextAccessor.HttpContext.Request.Cookies)
+                        {
+                            client.DefaultRequestHeaders.Add("Cookie", cookie.Key + "=" + cookie.Value);
+                        }
                     }
 
                     return client;

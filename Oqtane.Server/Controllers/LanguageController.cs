@@ -47,7 +47,7 @@ namespace Oqtane.Controllers
                             var code = Path.GetFileName(Path.GetDirectoryName(file));
                             if (!languages.Any(item => item.Code == code))
                             {
-                                languages.Add(new Language { Code = code, Name = CultureInfo.GetCultureInfo(code).DisplayName, Version = FileVersionInfo.GetVersionInfo(file).FileVersion, IsDefault = false });
+                                languages.Add(new Language { Code = code, Name = CultureInfo.GetCultureInfo(code).DisplayName, Version = FileVersionInfo.GetVersionInfo(file).ProductVersion, IsDefault = false });
                             }
                         }
                     }
@@ -62,7 +62,7 @@ namespace Oqtane.Controllers
                             var code = Path.GetFileName(Path.GetDirectoryName(file));
                             if (languages.Any(item => item.Code == code))
                             {
-                                languages.Single(item => item.Code == code).Version = FileVersionInfo.GetVersionInfo(file).FileVersion;
+                                languages.Single(item => item.Code == code).Version = FileVersionInfo.GetVersionInfo(file).ProductVersion;
                             }
                         }
                     }
@@ -89,8 +89,15 @@ namespace Oqtane.Controllers
             }
             else
             {
-                _logger.Log(LogLevel.Error, this, LogFunction.Security, "Unauthorized Language Get Attempt {LanguageId}", id);
-                HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                if (language != null)
+                {
+                    _logger.Log(LogLevel.Error, this, LogFunction.Security, "Unauthorized Language Get Attempt {LanguageId}", id);
+                    HttpContext.Response.StatusCode = (int)HttpStatusCode.Forbidden;
+                }
+                else
+                {
+                    HttpContext.Response.StatusCode = (int)HttpStatusCode.NotFound;
+                }
                 return null;
             }
         }

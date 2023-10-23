@@ -1,5 +1,6 @@
 using Oqtane.Models;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading.Tasks;
 
 namespace Oqtane.Services
@@ -34,6 +35,15 @@ namespace Oqtane.Services
         Task<File> GetFileAsync(int fileId);
 
         /// <summary>
+        /// Get a <see cref="File"/> based on the <see cref="Folder"/> and file name.
+        /// </summary>
+        /// <param name="folderId">Reference to the <see cref="Folder"/></param>
+        /// <param name="name">name of the file
+        /// </param>
+        /// <returns></returns>
+        Task<File> GetFileAsync(int folderId, string name);
+
+        /// <summary>
         /// Add / store a <see cref="File"/> record.
         /// This does not contain the file contents. 
         /// </summary>
@@ -65,27 +75,6 @@ namespace Oqtane.Services
         /// <param name="name"></param>
         /// <returns></returns>
         Task<File> UploadFileAsync(string url, int folderId, string name);
-
-        /// <summary>
-        /// Upload one or more files.
-        /// </summary>
-        /// <param name="folderId">Target <see cref="Folder"/></param>
-        /// <param name="files">The files to upload, serialized as a string.</param>
-        /// <param name="fileUploadName">A task-identifier, to ensure communication about this upload.</param>
-        /// <returns></returns>
-        Task<string> UploadFilesAsync(int folderId, string[] files, string fileUploadName);
-
-
-        /// <summary>
-        /// Upload one or more files.
-        /// </summary>
-        /// <param name="folder">Target <see cref="Folder"/>
-        /// TODO: todoc verify exactly from where the folder path must start
-        /// </param>
-        /// <param name="files">The files to upload, serialized as a string.</param>
-        /// <param name="fileUploadName">A task-identifier, to ensure communication about this upload.</param>
-        /// <returns></returns>
-        Task<string> UploadFilesAsync(string folder, string[] files, string fileUploadName);
 
         /// <summary>
         /// Get / download a file (the body).
